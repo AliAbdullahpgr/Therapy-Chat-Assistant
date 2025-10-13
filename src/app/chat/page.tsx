@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { logOut } from '@/lib/auth-service';
 import { saveConversation, loadConversation, clearConversation } from '@/lib/conversation-service';
+import { ThemeToggleSwitch } from '@/components/theme-toggle-switch';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,6 +22,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
@@ -284,6 +286,21 @@ export default function ChatPage() {
         [therapist.id]: [welcomeMessage]
       }));
       
+      // Save the welcome message to Firestore to persist the cleared state
+      try {
+        const firestoreMessage = {
+          id: welcomeMessage.id,
+          speaker: welcomeMessage.speaker,
+          message: welcomeMessage.content,
+          timestamp: welcomeMessage.timestamp,
+        };
+        
+        await saveConversation(therapist.id, [firestoreMessage]);
+        console.log(`[Chat] ✅ Welcome message saved to Firestore for ${therapist.id}`);
+      } catch (saveError) {
+        console.error('[Chat] ⚠️ Error saving welcome message to Firestore:', saveError);
+      }
+      
       toast({
         title: "Conversation Cleared",
         description: `Your conversation with ${therapist.name} has been deleted and reset.`,
@@ -323,7 +340,7 @@ export default function ChatPage() {
             <div key={therapist.id} className="relative group">
               <Button
                 variant={activeTherapist.id === therapist.id ? 'secondary' : 'ghost'}
-                className="w-full justify-start gap-3 h-14 pr-12"
+                className="w-full justify-start gap-3 h-14 pr-12 hover:bg-muted/50"
                 onClick={() => handleTherapistChange(therapist)}
               >
                 <Avatar className="h-10 w-10">
@@ -362,10 +379,10 @@ export default function ChatPage() {
         </nav>
         <div className="p-4 border-t">
           <Link href="/debate">
-            <Button variant="outline" className="w-full justify-start gap-3">
-              <MessageSquareHeart className="h-5 w-5" />
+            <Button variant="secondary" className="w-full justify-start gap-3 h-16 hover:bg-secondary/80">
+              <MessageSquareHeart className="h-6 w-6" />
               <div className="text-left">
-                <p className="font-semibold">Roundtable Debates</p>
+                <p className="font-semibold text-base">Roundtable Debates</p>
                 <p className="text-xs text-muted-foreground">Watch therapists discuss topics</p>
               </div>
             </Button>
@@ -392,7 +409,7 @@ export default function ChatPage() {
                   variant="ghost"
                   className="relative h-10 w-10 rounded-full p-0"
                 >
-                  <Avatar className="h-10 w-10">
+                  <Avatar className="h-10 w-10 border-2 border-muted">
                     <AvatarFallback className="bg-green-600 text-white font-semibold">
                       {user?.email?.charAt(0).toUpperCase() || 'U'}
                     </AvatarFallback>
@@ -400,10 +417,16 @@ export default function ChatPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
+                <div className="flex items-center justify-between px-3 py-3">
+                  <span className="text-sm font-medium">Theme</span>
+                  <ThemeToggleSwitch />
+                </div>
+                <DropdownMenuSeparator />
                 <div className="flex flex-col space-y-1 px-2 py-2">
                   <p className="text-xs text-muted-foreground">Logged in as</p>
                   <p className="text-sm font-medium truncate">{user?.email}</p>
                 </div>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={handleLogout}
                   className="cursor-pointer text-destructive focus:text-destructive"

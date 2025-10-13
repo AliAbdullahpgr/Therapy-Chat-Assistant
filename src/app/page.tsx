@@ -6,6 +6,7 @@ import { THERAPISTS, TESTIMONIALS } from '@/lib/constants';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { MessageSquareHeart, Star } from 'lucide-react';
+import { ThemeToggleSwitch } from '@/components/theme-toggle-switch';
 
 export default function LandingPage() {
   return (
@@ -15,9 +16,14 @@ export default function LandingPage() {
           <MessageSquareHeart className="h-6 w-6 text-primary" />
           <span className="ml-2 text-xl font-bold font-headline">AI Therapists</span>
         </Link>
-        <nav className="ml-auto flex gap-4 sm:gap-6">
-          <Button variant="ghost">Login</Button>
-          <Button>Sign Up</Button>
+        <nav className="ml-auto flex gap-4 sm:gap-6 items-center">
+          <ThemeToggleSwitch />
+          <Link href="/login">
+            <Button variant="ghost">Login</Button>
+          </Link>
+          <Link href="/signup">
+            <Button>Sign Up</Button>
+          </Link>
         </nav>
       </header>
       <main className="flex-1">

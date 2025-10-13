@@ -565,9 +565,6 @@ export default function DebatePage() {
                 <Send className="h-4 w-4" />
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              💬 Ask questions or share your thoughts - a therapist will respond to you! Press Enter to send (Shift+Enter for new line).
-            </p>
           </form>
         </div>
       </div>
