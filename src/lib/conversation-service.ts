@@ -1,8 +1,15 @@
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 const CONVERSATIONS_COLLECTION = 'conversations';
-const DEFAULT_USER_ID = 'default-user';
+
+/**
+ * Get the current user's ID for Firestore operations
+ * Falls back to 'default-user' if no user is authenticated (for backwards compatibility)
+ */
+function getUserId(): string {
+  return auth.currentUser?.uid || 'default-user';
+}
 
 interface Message {
   id: string;
@@ -16,11 +23,12 @@ export async function saveConversation(
   messages: Message[]
 ): Promise<void> {
   try {
+    const userId = getUserId();
     console.log(
-      `[Firestore] 💾 Saving conversation for ${therapistId} (${messages.length} messages)...`
+      `[Firestore] 💾 Saving conversation for ${therapistId} (${messages.length} messages) - User: ${userId}...`
     );
 
-    const docRef = doc(db, CONVERSATIONS_COLLECTION, DEFAULT_USER_ID);
+    const docRef = doc(db, CONVERSATIONS_COLLECTION, userId);
 
     // Convert Date objects to ISO strings for Firestore
     const messagesData = messages.map((msg) => ({
@@ -53,9 +61,10 @@ export async function loadConversation(
   therapistId: string
 ): Promise<Message[]> {
   try {
-    console.log(`[Firestore] 📥 Loading conversation for ${therapistId}...`);
+    const userId = getUserId();
+    console.log(`[Firestore] 📥 Loading conversation for ${therapistId} - User: ${userId}...`);
 
-    const docRef = doc(db, CONVERSATIONS_COLLECTION, DEFAULT_USER_ID);
+    const docRef = doc(db, CONVERSATIONS_COLLECTION, userId);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
@@ -87,9 +96,10 @@ export async function loadConversation(
 
 export async function clearConversation(therapistId: string): Promise<void> {
   try {
-    console.log(`[Firestore] 🗑️ Clearing conversation for ${therapistId}...`);
+    const userId = getUserId();
+    console.log(`[Firestore] 🗑️ Clearing conversation for ${therapistId} - User: ${userId}...`);
 
-    const docRef = doc(db, CONVERSATIONS_COLLECTION, DEFAULT_USER_ID);
+    const docRef = doc(db, CONVERSATIONS_COLLECTION, userId);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
@@ -116,9 +126,10 @@ export async function clearConversation(therapistId: string): Promise<void> {
 
 export async function clearAllConversations(): Promise<void> {
   try {
-    console.log('[Firestore] 🗑️ Clearing all conversations...');
+    const userId = getUserId();
+    console.log(`[Firestore] 🗑️ Clearing all conversations - User: ${userId}...`);
 
-    const docRef = doc(db, CONVERSATIONS_COLLECTION, DEFAULT_USER_ID);
+    const docRef = doc(db, CONVERSATIONS_COLLECTION, userId);
     await deleteDoc(docRef);
 
     console.log('[Firestore] ✅ Successfully cleared all conversations');

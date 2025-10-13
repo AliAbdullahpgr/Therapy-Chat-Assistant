@@ -1,12 +1,16 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, User as UserIcon, Send, MessageSquareHeart } from 'lucide-react';
+import { Bot, User as UserIcon, Send, MessageSquareHeart, LogOut } from 'lucide-react';
 import { THERAPISTS, type Therapist, type Speaker } from '@/lib/constants';
 import * as actions from '../actions';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/auth-context';
+import { logOut } from '@/lib/auth-service';
+import { saveConversation, loadConversation } from '@/lib/conversation-service';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -25,6 +29,10 @@ type ConversationHistory = {
 };
 
 export default function ChatPage() {
+  const router = useRouter();
+  const { user, loading: authLoading, isEmailVerified } = useAuth();
+  const { toast } = useToast();
+  
   const [messages, setMessages] = useState<ConversationHistory>(() => {
     const initialMessages: ConversationHistory = {
       'Dr. Sarah': [],
@@ -47,15 +55,76 @@ export default function ChatPage() {
   const [userInput, setUserInput] = useState("");
   const [activeTherapist, setActiveTherapist] = useState<Therapist>(THERAPISTS[0]);
   const [isClient, setIsClient] = useState(false);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(true);
+
+  // Protect route - redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && (!user || !isEmailVerified)) {
+      console.log('[Chat] User not authenticated or email not verified, redirecting to login...');
+      router.push('/login');
+    }
+  }, [user, isEmailVerified, authLoading, router]);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  const { toast } = useToast();
+  // Load conversation from Firestore when component mounts or therapist changes
+  useEffect(() => {
+    async function loadConversationHistory() {
+      setIsLoadingConversations(true);
+      console.log(`[Firestore] 📥 Loading conversation for ${activeTherapist.id}...`);
+      
+      try {
+        const savedMessages = await loadConversation(activeTherapist.id);
+        
+        if (savedMessages.length > 0) {
+          // Convert Firestore message format to our Message type
+          const formattedMessages: Message[] = savedMessages
+            .filter((msg: any) => msg.message) // Filter out messages without content
+            .map((msg: any) => ({
+              id: msg.id,
+              speaker: msg.speaker as Speaker,
+              content: msg.message || '', // Fallback to empty string
+              timestamp: msg.timestamp,
+            }));
+          
+          setMessages((prev) => ({
+            ...prev,
+            [activeTherapist.id]: formattedMessages,
+          }));
+          
+          console.log(`[Firestore] ✅ Loaded ${formattedMessages.length} messages for ${activeTherapist.id}`);
+        } else {
+          console.log(`[Firestore] ℹ️ No saved conversation found for ${activeTherapist.id}, using welcome message`);
+        }
+      } catch (error) {
+        console.error(`[Firestore] ❌ Error loading conversation:`, error);
+      } finally {
+        setIsLoadingConversations(false);
+      }
+    }
+
+    loadConversationHistory();
+  }, [activeTherapist.id]);
+
   const chatContainerRef = useRef<HTMLDivElement>(null);
   
   const activeMessages = messages[activeTherapist.id];
+
+  const handleLogout = async () => {
+    try {
+      await logOut();
+      router.push('/login');
+    } catch (error) {
+      console.error('[Chat] Error logging out:', error);
+      toast({
+        title: "Error",
+        description: "Failed to log out. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -76,12 +145,42 @@ export default function ChatPage() {
     if (!userInput.trim()) return;
 
     const userMessageContent = userInput;
-    addMessage(activeTherapist.id, 'User', userMessageContent);
+    const userMessage: Message = {
+      id: `user-${Date.now()}`,
+      speaker: 'User',
+      content: userMessageContent,
+      timestamp: new Date(),
+    };
+
+    // IMPORTANT: Add user message to state IMMEDIATELY before any async operations
+    // This prevents the message from disappearing
+    setMessages(prev => ({
+      ...prev,
+      [activeTherapist.id]: [...prev[activeTherapist.id], userMessage]
+    }));
+    
     setUserInput("");
     setIsThinking(true);
 
+    // Save user message to Firestore
     try {
-      const currentConversation = [...messages[activeTherapist.id], { speaker: 'User', content: userMessageContent, id: '', timestamp: new Date() }];
+      const currentMessages = [...messages[activeTherapist.id], userMessage];
+      const firestoreMessages = currentMessages.map(msg => ({
+        id: msg.id,
+        speaker: msg.speaker,
+        message: msg.content,
+        timestamp: msg.timestamp,
+      }));
+      
+      await saveConversation(activeTherapist.id, firestoreMessages);
+      console.log(`[Firestore] ✅ User message stored in database for ${activeTherapist.id}`);
+    } catch (error) {
+      console.error(`[Firestore] ❌ Error saving user message:`, error);
+    }
+
+    // Get AI response
+    try {
+      const currentConversation = [...messages[activeTherapist.id], userMessage];
       
       const { response } = await actions.aiRespondsToSpeakers({
         conversationHistory: currentConversation.map(m => ({ speaker: m.speaker, message: m.content })),
@@ -91,7 +190,34 @@ export default function ChatPage() {
         drJohnPersona: THERAPISTS.find(t => t.id === 'Dr. John')?.persona ?? '',
       });
 
-      addMessage(activeTherapist.id, activeTherapist.id, response);
+      const aiMessage: Message = {
+        id: `ai-${Date.now()}`,
+        speaker: activeTherapist.id,
+        content: response,
+        timestamp: new Date(),
+      };
+
+      // Add AI message to state
+      setMessages(prev => ({
+        ...prev,
+        [activeTherapist.id]: [...prev[activeTherapist.id], aiMessage]
+      }));
+
+      // Save AI message to Firestore
+      try {
+        const updatedMessages = [...messages[activeTherapist.id], userMessage, aiMessage];
+        const firestoreMessages = updatedMessages.map(msg => ({
+          id: msg.id,
+          speaker: msg.speaker,
+          message: msg.content,
+          timestamp: msg.timestamp,
+        }));
+        
+        await saveConversation(activeTherapist.id, firestoreMessages);
+        console.log(`[Firestore] ✅ AI response stored in database for ${activeTherapist.id}`);
+      } catch (error) {
+        console.error(`[Firestore] ❌ Error saving AI response:`, error);
+      }
     } catch (error) {
       console.error("Error getting AI response:", error);
       toast({
@@ -99,7 +225,18 @@ export default function ChatPage() {
         description: "Could not get a response from the AI. Please try again.",
         variant: "destructive",
       });
-      addMessage(activeTherapist.id, 'Bot', 'Sorry, I encountered an error. Please try sending your message again.');
+      
+      const errorMessage: Message = {
+        id: `error-${Date.now()}`,
+        speaker: 'Bot',
+        content: 'Sorry, I encountered an error. Please try sending your message again.',
+        timestamp: new Date(),
+      };
+      
+      setMessages(prev => ({
+        ...prev,
+        [activeTherapist.id]: [...prev[activeTherapist.id], errorMessage]
+      }));
     } finally {
       setIsThinking(false);
     }
@@ -149,7 +286,7 @@ export default function ChatPage() {
       </aside>
       
       <div className="flex flex-1 flex-col">
-        <header className="flex h-16 items-center border-b px-6 shrink-0 bg-card">
+        <header className="flex h-16 items-center justify-between border-b px-6 shrink-0 bg-card">
           <div className="flex items-center gap-3">
              <Avatar className="h-10 w-10">
                 <AvatarImage src={activeTherapist.avatarUrl} data-ai-hint={activeTherapist.avatarHint} />
@@ -160,10 +297,38 @@ export default function ChatPage() {
                 <p className="text-sm text-muted-foreground">{activeTherapist.title}</p>
             </div>
           </div>
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <p className="text-sm font-semibold">{user?.email}</p>
+              <p className="text-xs text-muted-foreground">Logged in</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleLogout}
+              className="gap-2"
+            >
+              <LogOut className="h-4 w-4" />
+              Logout
+            </Button>
+          </div>
         </header>
 
         <main className="flex-1 flex flex-col overflow-hidden">
             <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-6 space-y-6">
+              {isLoadingConversations ? (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                  <div className="text-center">
+                    <div className="flex gap-1 justify-center mb-2">
+                      <span className="animate-bounce inline-block">●</span>
+                      <span className="animate-bounce inline-block" style={{animationDelay: '0.1s'}}>●</span>
+                      <span className="animate-bounce inline-block" style={{animationDelay: '0.2s'}}>●</span>
+                    </div>
+                    <p>Loading conversation from Firebase...</p>
+                  </div>
+                </div>
+              ) : (
+                <>
               {activeMessages.map((message) => {
                   const speakerInfo = THERAPISTS.find(t => t.id === message.speaker);
                   const isUser = message.speaker === 'User';
@@ -185,7 +350,7 @@ export default function ChatPage() {
                         </div>
                         <Card className={cn(isUser ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-card rounded-bl-none')}>
                             <CardContent className="p-3 text-sm">
-                                {message.content.split('\n').map((line, index) => <p key={index}>{line || ' '}</p>)}
+                                {(message.content || '').split('\n').map((line, index) => <p key={index}>{line || ' '}</p>)}
                             </CardContent>
                         </Card>
                       </div>
@@ -222,6 +387,8 @@ export default function ChatPage() {
                       </Card>
                     </div>
                  </div>
+              )}
+                </>
               )}
             </div>
             
