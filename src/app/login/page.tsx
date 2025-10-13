@@ -54,7 +54,7 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl font-headline">Welcome Back</CardTitle>
           <CardDescription>
-            Sign in to your account to continue your therapy sessions
+            Sign in to your Solace account to continue
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>

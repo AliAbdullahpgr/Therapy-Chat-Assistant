@@ -5,8 +5,8 @@ import { ThemeProvider } from "@/components/theme-provider"
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'AI Therapy Chat',
-  description: 'An AI-powered chat with different therapy personas.',
+  title: 'Solace - Your AI Support Companion',
+  description: 'Solace is your personal AI-powered mental health support companion.',
 };
 
 export default function RootLayout({

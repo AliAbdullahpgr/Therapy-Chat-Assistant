@@ -116,7 +116,7 @@ export default function SignupPage() {
           </div>
           <CardTitle className="text-2xl font-headline">Create Account</CardTitle>
           <CardDescription>
-            Start your journey with our AI therapists
+            Start your journey with Solace
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>

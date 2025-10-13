@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Bot, User as UserIcon, Send, MessageSquareHeart, LogOut, MoreVertical, Trash2, Menu, X } from 'lucide-react';
 import { THERAPISTS, type Therapist, type Speaker } from '@/lib/constants';
 import * as actions from '../actions';
@@ -46,6 +46,89 @@ type Message = {
 type ConversationHistory = {
   [key in Therapist['id']]: Message[];
 };
+
+// Sidebar content component - defined OUTSIDE ChatPage to prevent re-creation on every render
+const SidebarContent = React.memo<{
+  activeTherapistId: string;
+  onTherapistChange: (therapist: Therapist) => void;
+  onCloseMobileMenu: () => void;
+  onSetTherapistToDelete: (therapist: Therapist) => void;
+}>(({ activeTherapistId, onTherapistChange, onCloseMobileMenu, onSetTherapistToDelete }) => {
+  console.log('[Sidebar] Rendering SidebarContent');
+  
+  return (
+    <>
+      <div className="flex h-16 items-center border-b px-6 shrink-0">
+        <Link href="/" className="flex items-center gap-3">
+          <MessageSquareHeart className="h-7 w-7 text-primary" />
+          <h1 className="text-xl font-headline font-bold">Solace</h1>
+        </Link>
+      </div>
+      <nav className="flex-1 overflow-y-auto p-4 space-y-2">
+        {THERAPISTS.map(therapist => (
+          <div key={therapist.id} className="relative group">
+            <Button
+              variant={activeTherapistId === therapist.id ? 'secondary' : 'ghost'}
+              className="w-full justify-start gap-3 h-14 pr-12 hover:bg-muted/50"
+              onClick={() => {
+                onTherapistChange(therapist);
+                onCloseMobileMenu();
+              }}
+            >
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={therapist.avatarUrl} alt={therapist.name} data-ai-hint={therapist.avatarHint} />
+                <AvatarFallback>{therapist.name.charAt(3)}</AvatarFallback>
+              </Avatar>
+              <div className='text-left'>
+                <p className="font-semibold">{therapist.name}</p>
+                <p className="text-sm text-muted-foreground">{therapist.title}</p>
+              </div>
+            </Button>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive cursor-pointer"
+                  onClick={() => onSetTherapistToDelete(therapist)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Clear Conversation
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        ))}
+      </nav>
+      <div className="p-4 border-t">
+        <Link href="/debate" onClick={onCloseMobileMenu}>
+          <Button variant="secondary" className="w-full justify-start gap-3 h-16 hover:bg-secondary/80">
+            <MessageSquareHeart className="h-6 w-6" />
+            <div className="text-left">
+              <p className="font-semibold text-base">Roundtable Debates</p>
+              <p className="text-xs text-muted-foreground">Watch therapists discuss topics</p>
+            </div>
+          </Button>
+        </Link>
+      </div>
+    </>
+  );
+}, (prevProps, nextProps) => {
+  // Custom comparison: only re-render if activeTherapistId changes
+  // This prevents re-renders when user types or other state changes
+  return prevProps.activeTherapistId === nextProps.activeTherapistId;
+});
+
+SidebarContent.displayName = 'SidebarContent';
 
 export default function ChatPage() {
   const router = useRouter();
@@ -163,7 +246,7 @@ export default function ChatPage() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userInput.trim()) return;
+    if (!userInput.trim() || isThinking) return;
 
     const userMessageContent = userInput;
     const userMessage: Message = {
@@ -173,20 +256,23 @@ export default function ChatPage() {
       timestamp: new Date(),
     };
 
+    // Build the updated conversation with user message
+    const currentConversation = [...messages[activeTherapist.id], userMessage];
+    
+    // Clear input and set thinking state FIRST
+    setUserInput("");
+    setIsThinking(true);
+    
     // IMPORTANT: Add user message to state IMMEDIATELY before any async operations
     // This prevents the message from disappearing
     setMessages(prev => ({
       ...prev,
-      [activeTherapist.id]: [...prev[activeTherapist.id], userMessage]
+      [activeTherapist.id]: currentConversation
     }));
-    
-    setUserInput("");
-    setIsThinking(true);
 
     // Save user message to Firestore
     try {
-      const currentMessages = [...messages[activeTherapist.id], userMessage];
-      const firestoreMessages = currentMessages.map(msg => ({
+      const firestoreMessages = currentConversation.map(msg => ({
         id: msg.id,
         speaker: msg.speaker,
         message: msg.content,
@@ -201,8 +287,6 @@ export default function ChatPage() {
 
     // Get AI response
     try {
-      const currentConversation = [...messages[activeTherapist.id], userMessage];
-      
       const { response } = await actions.aiRespondsToSpeakers({
         conversationHistory: currentConversation.map(m => ({ speaker: m.speaker, message: m.content })),
         currentSpeaker: activeTherapist.id,
@@ -218,6 +302,9 @@ export default function ChatPage() {
         timestamp: new Date(),
       };
 
+      // Turn off thinking BEFORE adding the AI message to prevent flicker
+      setIsThinking(false);
+
       // Add AI message to state
       setMessages(prev => ({
         ...prev,
@@ -226,7 +313,7 @@ export default function ChatPage() {
 
       // Save AI message to Firestore
       try {
-        const updatedMessages = [...messages[activeTherapist.id], userMessage, aiMessage];
+        const updatedMessages = [...currentConversation, aiMessage];
         const firestoreMessages = updatedMessages.map(msg => ({
           id: msg.id,
           speaker: msg.speaker,
@@ -241,6 +328,9 @@ export default function ChatPage() {
       }
     } catch (error) {
       console.error("Error getting AI response:", error);
+      
+      setIsThinking(false);
+      
       toast({
         title: "Error",
         description: "Could not get a response from the AI. Please try again.",
@@ -258,15 +348,13 @@ export default function ChatPage() {
         ...prev,
         [activeTherapist.id]: [...prev[activeTherapist.id], errorMessage]
       }));
-    } finally {
-      setIsThinking(false);
     }
   };
   
-  const handleTherapistChange = (therapist: Therapist) => {
+  const handleTherapistChange = useCallback((therapist: Therapist) => {
     if (therapist.id === activeTherapist.id) return;
     setActiveTherapist(therapist);
-  }
+  }, [activeTherapist.id]);
 
   const handleClearConversation = async (therapist: Therapist) => {
     try {
@@ -328,79 +416,25 @@ export default function ChatPage() {
     return Svg ? <Svg className={cn("h-5 w-5", className)} /> : null;
   };
 
-  // Sidebar content component to reuse in desktop and mobile
-  const SidebarContent = () => (
-    <>
-      <div className="flex h-16 items-center border-b px-6 shrink-0">
-        <Link href="/" className="flex items-center gap-3">
-          <MessageSquareHeart className="h-7 w-7 text-primary" />
-          <h1 className="text-xl font-headline font-bold">AI Therapists</h1>
-        </Link>
-      </div>
-      <nav className="flex-1 overflow-y-auto p-4 space-y-2">
-        {THERAPISTS.map(therapist => (
-          <div key={therapist.id} className="relative group">
-            <Button
-              variant={activeTherapist.id === therapist.id ? 'secondary' : 'ghost'}
-              className="w-full justify-start gap-3 h-14 pr-12 hover:bg-muted/50"
-              onClick={() => {
-                handleTherapistChange(therapist);
-                setIsMobileMenuOpen(false);
-              }}
-            >
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={therapist.avatarUrl} data-ai-hint={therapist.avatarHint} />
-                <AvatarFallback>{therapist.name.charAt(3)}</AvatarFallback>
-              </Avatar>
-              <div className='text-left'>
-                <p className="font-semibold">{therapist.name}</p>
-                <p className="text-sm text-muted-foreground">{therapist.title}</p>
-              </div>
-            </Button>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive cursor-pointer"
-                  onClick={() => setTherapistToDelete(therapist)}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Clear Conversation
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        ))}
-      </nav>
-      <div className="p-4 border-t">
-        <Link href="/debate" onClick={() => setIsMobileMenuOpen(false)}>
-          <Button variant="secondary" className="w-full justify-start gap-3 h-16 hover:bg-secondary/80">
-            <MessageSquareHeart className="h-6 w-6" />
-            <div className="text-left">
-              <p className="font-semibold text-base">Roundtable Debates</p>
-              <p className="text-xs text-muted-foreground">Watch therapists discuss topics</p>
-            </div>
-          </Button>
-        </Link>
-      </div>
-    </>
-  );
+  // Memoized handlers to prevent re-renders
+  const handleCloseMobileMenu = useCallback(() => {
+    setIsMobileMenuOpen(false);
+  }, []);
+
+  const handleSetTherapistToDelete = useCallback((therapist: Therapist) => {
+    setTherapistToDelete(therapist);
+  }, []);
 
   return (
     <div className="flex h-screen w-full bg-background font-body">
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-80 border-r bg-card flex-col">
-        <SidebarContent />
+        <SidebarContent 
+          activeTherapistId={activeTherapist.id}
+          onTherapistChange={handleTherapistChange}
+          onCloseMobileMenu={handleCloseMobileMenu}
+          onSetTherapistToDelete={handleSetTherapistToDelete}
+        />
       </aside>
 
       {/* Mobile Sidebar */}
@@ -408,7 +442,12 @@ export default function ChatPage() {
         <SheetContent side="left" className="p-0 w-80">
           <SheetTitle className="sr-only">Therapist Selection Menu</SheetTitle>
           <div className="flex flex-col h-full bg-card">
-            <SidebarContent />
+            <SidebarContent 
+              activeTherapistId={activeTherapist.id}
+              onTherapistChange={handleTherapistChange}
+              onCloseMobileMenu={handleCloseMobileMenu}
+              onSetTherapistToDelete={handleSetTherapistToDelete}
+            />
           </div>
         </SheetContent>
       </Sheet>

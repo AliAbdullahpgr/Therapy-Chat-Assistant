@@ -14,7 +14,7 @@ export default function LandingPage() {
       <header className="px-4 lg:px-6 h-16 flex items-center border-b">
         <Link href="/" className="flex items-center justify-center">
           <MessageSquareHeart className="h-6 w-6 text-primary" />
-          <span className="ml-2 text-xl font-bold font-headline">AI Therapists</span>
+          <span className="ml-2 text-xl font-bold font-headline">Solace</span>
         </Link>
         <nav className="ml-auto flex gap-4 sm:gap-6 items-center">
           <ThemeToggleSwitch />
@@ -31,7 +31,7 @@ export default function LandingPage() {
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center space-y-6">
               <h1 className="text-4xl font-extrabold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl/none font-headline">
-                Meet Your Personal AI Therapists
+                Your Personal AI Support Companion
               </h1>
               <p className="max-w-[700px] text-muted-foreground md:text-xl">
                 Engage in meaningful conversations with AI companions designed to listen, understand, and provide support.
@@ -47,7 +47,7 @@ export default function LandingPage() {
         </section>
         <section className="w-full py-12 md:py-24 bg-card">
           <div className="container px-4 md:px-6">
-            <h2 className="text-3xl font-bold text-center mb-12 font-headline">Our AI Therapists</h2>
+            <h2 className="text-3xl font-bold text-center mb-12 font-headline">Your Solace Companions</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {THERAPISTS.map((therapist) => (
                 <div key={therapist.id} className="flex flex-col items-center text-center p-6 rounded-lg border">
@@ -97,7 +97,7 @@ export default function LandingPage() {
 
       </main>
       <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6 border-t">
-        <p className="text-xs text-muted-foreground">&copy; 2024 AI Therapists. All rights reserved.</p>
+        <p className="text-xs text-muted-foreground">&copy; 2024 Solace. All rights reserved.</p>
         <nav className="sm:ml-auto flex gap-4 sm:gap-6">
           <Link href="#" className="text-xs hover:underline underline-offset-4" prefetch={false}>
             Terms of Service

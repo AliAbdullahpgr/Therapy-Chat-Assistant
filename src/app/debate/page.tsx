@@ -119,7 +119,13 @@ export default function DebatePage() {
   // Auto-play debate
   useEffect(() => {
     if (debateState === 'playing' && currentExchange < 20 && !isGenerating) {
-      const delay = (3000 / playbackSpeed); // Base delay of 3 seconds
+      // Speed settings: 1x = 2.5s, 1.5x = 1.5s, 2x = 1s
+      let delay = 2500; // 1x speed (2.5 seconds)
+      if (playbackSpeed === 1.5) {
+        delay = 1500; // 1.5x speed (1.5 seconds)
+      } else if (playbackSpeed === 2) {
+        delay = 1000; // 2x speed (1 second)
+      }
       const timer = setTimeout(() => {
         generateNextExchange();
       }, delay);
@@ -333,13 +339,13 @@ export default function DebatePage() {
 
   // Debate Viewing Interface
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-screen bg-background">
       {/* Participant Sidebar - Hidden on mobile */}
       <aside className={cn(
-        "hidden md:block border-r bg-card transition-all duration-300 overflow-hidden",
+        "hidden md:flex md:flex-col border-r bg-card transition-all duration-300 overflow-hidden",
         showParticipants ? "w-64" : "w-0"
       )}>
-        <div className="p-4 w-64">
+        <div className="p-4 w-64 overflow-y-auto flex-1">
           <div className="flex items-center gap-2 mb-4">
             <Users className="h-5 w-5" />
             <h3 className="font-semibold">Participants</h3>
@@ -398,13 +404,13 @@ export default function DebatePage() {
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col max-w-5xl mx-auto w-full">
+      <div className="flex-1 flex flex-col w-full overflow-hidden">
         {/* Header with Controls */}
-        <header className="border-b bg-card p-3 md:p-4 sticky top-0 z-10 shadow-sm">
-          <div className="flex items-center justify-between mb-2 gap-2">
+        <header className="border-b bg-card px-3 md:px-6 py-2 md:py-3 sticky top-0 z-10 shadow-sm">
+          <div className="flex items-center justify-between gap-2">
             <div className="flex-1 min-w-0">
-              <h2 className="text-base md:text-lg font-semibold truncate">{selectedTopicData?.title}</h2>
-              <p className="text-xs md:text-sm text-muted-foreground">
+              <h2 className="text-sm md:text-base font-semibold truncate">{selectedTopicData?.title}</h2>
+              <p className="text-xs text-muted-foreground">
                 Exchange {currentExchange} of 20+ • {messages.length} messages
               </p>
             </div>
@@ -518,7 +524,7 @@ export default function DebatePage() {
                   <div className={cn("flex items-center gap-2", isUser && "flex-row-reverse")}>
                     <span className={cn(
                       "font-semibold text-sm",
-                      therapist?.color || (isUser ? "text-primary" : "text-foreground")
+                      isUser ? "text-primary" : "text-foreground"
                     )}>
                       {therapist?.name || message.speaker}
                     </span>
@@ -542,7 +548,7 @@ export default function DebatePage() {
                     !isUser && therapist?.bgColor
                   )}>
                     <CardContent className="p-4">
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">
                         {message.message}
                       </p>
                     </CardContent>
