@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, User as UserIcon, Send, MessageSquareHeart, LogOut, MoreVertical, Trash2 } from 'lucide-react';
+import { Bot, User as UserIcon, Send, MessageSquareHeart, LogOut, MoreVertical, Trash2, Menu, X } from 'lucide-react';
 import { THERAPISTS, type Therapist, type Speaker } from '@/lib/constants';
 import * as actions from '../actions';
 import { useToast } from "@/hooks/use-toast";
@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -75,6 +76,7 @@ export default function ChatPage() {
   const [isClient, setIsClient] = useState(false);
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
   const [therapistToDelete, setTherapistToDelete] = useState<Therapist | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Protect route - redirect to login if not authenticated
   useEffect(() => {
@@ -326,80 +328,111 @@ export default function ChatPage() {
     return Svg ? <Svg className={cn("h-5 w-5", className)} /> : null;
   };
 
-  return (
-    <div className="flex h-screen w-full bg-background font-body">
-      <aside className="w-80 border-r bg-card flex flex-col">
-        <div className="flex h-16 items-center border-b px-6 shrink-0">
-          <Link href="/" className="flex items-center gap-3">
-            <MessageSquareHeart className="h-7 w-7 text-primary" />
-            <h1 className="text-xl font-headline font-bold">AI Therapists</h1>
-          </Link>
-        </div>
-        <nav className="flex-1 overflow-y-auto p-4 space-y-2">
-          {THERAPISTS.map(therapist => (
-            <div key={therapist.id} className="relative group">
-              <Button
-                variant={activeTherapist.id === therapist.id ? 'secondary' : 'ghost'}
-                className="w-full justify-start gap-3 h-14 pr-12 hover:bg-muted/50"
-                onClick={() => handleTherapistChange(therapist)}
-              >
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={therapist.avatarUrl} data-ai-hint={therapist.avatarHint} />
-                  <AvatarFallback>{therapist.name.charAt(3)}</AvatarFallback>
-                </Avatar>
-                <div className='text-left'>
-                  <p className="font-semibold">{therapist.name}</p>
-                  <p className="text-sm text-muted-foreground">{therapist.title}</p>
-                </div>
-              </Button>
-              
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive cursor-pointer"
-                    onClick={() => setTherapistToDelete(therapist)}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Clear Conversation
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          ))}
-        </nav>
-        <div className="p-4 border-t">
-          <Link href="/debate">
-            <Button variant="secondary" className="w-full justify-start gap-3 h-16 hover:bg-secondary/80">
-              <MessageSquareHeart className="h-6 w-6" />
-              <div className="text-left">
-                <p className="font-semibold text-base">Roundtable Debates</p>
-                <p className="text-xs text-muted-foreground">Watch therapists discuss topics</p>
+  // Sidebar content component to reuse in desktop and mobile
+  const SidebarContent = () => (
+    <>
+      <div className="flex h-16 items-center border-b px-6 shrink-0">
+        <Link href="/" className="flex items-center gap-3">
+          <MessageSquareHeart className="h-7 w-7 text-primary" />
+          <h1 className="text-xl font-headline font-bold">AI Therapists</h1>
+        </Link>
+      </div>
+      <nav className="flex-1 overflow-y-auto p-4 space-y-2">
+        {THERAPISTS.map(therapist => (
+          <div key={therapist.id} className="relative group">
+            <Button
+              variant={activeTherapist.id === therapist.id ? 'secondary' : 'ghost'}
+              className="w-full justify-start gap-3 h-14 pr-12 hover:bg-muted/50"
+              onClick={() => {
+                handleTherapistChange(therapist);
+                setIsMobileMenuOpen(false);
+              }}
+            >
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={therapist.avatarUrl} data-ai-hint={therapist.avatarHint} />
+                <AvatarFallback>{therapist.name.charAt(3)}</AvatarFallback>
+              </Avatar>
+              <div className='text-left'>
+                <p className="font-semibold">{therapist.name}</p>
+                <p className="text-sm text-muted-foreground">{therapist.title}</p>
               </div>
             </Button>
-          </Link>
-        </div>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive cursor-pointer"
+                  onClick={() => setTherapistToDelete(therapist)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Clear Conversation
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        ))}
+      </nav>
+      <div className="p-4 border-t">
+        <Link href="/debate" onClick={() => setIsMobileMenuOpen(false)}>
+          <Button variant="secondary" className="w-full justify-start gap-3 h-16 hover:bg-secondary/80">
+            <MessageSquareHeart className="h-6 w-6" />
+            <div className="text-left">
+              <p className="font-semibold text-base">Roundtable Debates</p>
+              <p className="text-xs text-muted-foreground">Watch therapists discuss topics</p>
+            </div>
+          </Button>
+        </Link>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="flex h-screen w-full bg-background font-body">
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex w-80 border-r bg-card flex-col">
+        <SidebarContent />
       </aside>
+
+      {/* Mobile Sidebar */}
+      <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+        <SheetContent side="left" className="p-0 w-80">
+          <SheetTitle className="sr-only">Therapist Selection Menu</SheetTitle>
+          <div className="flex flex-col h-full bg-card">
+            <SidebarContent />
+          </div>
+        </SheetContent>
+      </Sheet>
       
       <div className="flex flex-1 flex-col">
-        <header className="flex h-16 items-center justify-between border-b px-6 shrink-0 bg-card">
+        <header className="flex h-16 items-center justify-between border-b px-4 md:px-6 shrink-0 bg-card">
           <div className="flex items-center gap-3">
+            {/* Mobile Menu Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              onClick={() => setIsMobileMenuOpen(true)}
+            >
+              <Menu className="h-6 w-6" />
+            </Button>
+            
              <Avatar className="h-10 w-10">
                 <AvatarImage src={activeTherapist.avatarUrl} data-ai-hint={activeTherapist.avatarHint} />
                 <AvatarFallback>{activeTherapist.name.charAt(3)}</AvatarFallback>
             </Avatar>
             <div>
-                <h2 className="text-lg font-headline font-bold">{activeTherapist.name}</h2>
-                <p className="text-sm text-muted-foreground">{activeTherapist.title}</p>
+                <h2 className="text-base md:text-lg font-headline font-bold">{activeTherapist.name}</h2>
+                <p className="text-xs md:text-sm text-muted-foreground">{activeTherapist.title}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -440,7 +473,7 @@ export default function ChatPage() {
         </header>
 
         <main className="flex-1 flex flex-col overflow-hidden">
-            <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
               {isLoadingConversations ? (
                 <div className="flex items-center justify-center h-full text-gray-500">
                   <div className="text-center">
@@ -459,28 +492,28 @@ export default function ChatPage() {
                   const isUser = message.speaker === 'User';
                   
                   return (
-                    <div key={message.id} className={cn("flex items-start gap-3 max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-300", isUser ? "justify-end" : "justify-start")}>
+                    <div key={message.id} className={cn("flex items-start gap-2 md:gap-3 max-w-full md:max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-300", isUser ? "justify-end" : "justify-start")}>
                       {!isUser && (
-                        <Avatar className="w-10 h-10 border">
+                        <Avatar className="w-8 h-8 md:w-10 md:h-10 border flex-shrink-0">
                            <AvatarImage src={speakerInfo?.avatarUrl} data-ai-hint={speakerInfo?.avatarHint} />
                            <AvatarFallback>
                              <PersonaIcon speaker={message.speaker} />
                            </AvatarFallback>
                         </Avatar>
                       )}
-                      <div className={cn("flex flex-col gap-1 max-w-xl", isUser && "items-end")}>
+                      <div className={cn("flex flex-col gap-1 max-w-[75%] md:max-w-xl", isUser && "items-end")}>
                         <div className="flex items-center gap-2">
-                            <span className="font-semibold text-sm">{speakerInfo?.name || message.speaker}</span>
+                            <span className="font-semibold text-xs md:text-sm">{speakerInfo?.name || message.speaker}</span>
                             {isClient && <span className="text-xs text-muted-foreground">{message.timestamp.toLocaleTimeString()}</span>}
                         </div>
                         <Card className={cn(isUser ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-card rounded-bl-none')}>
-                            <CardContent className="p-3 text-sm">
+                            <CardContent className="p-2.5 md:p-3 text-sm md:text-base">
                                 {(message.content || '').split('\n').map((line, index) => <p key={index}>{line || ' '}</p>)}
                             </CardContent>
                         </Card>
                       </div>
                        {isUser && (
-                        <Avatar className="w-10 h-10 border">
+                        <Avatar className="w-8 h-8 md:w-10 md:h-10 border flex-shrink-0">
                            <AvatarFallback>
                              <UserIcon />
                            </AvatarFallback>
@@ -490,19 +523,19 @@ export default function ChatPage() {
                   );
               })}
               {isThinking && (
-                 <div className="flex items-start gap-3 max-w-3xl mx-auto">
-                    <Avatar className="w-10 h-10 border">
+                 <div className="flex items-start gap-2 md:gap-3 max-w-full md:max-w-3xl mx-auto">
+                    <Avatar className="w-8 h-8 md:w-10 md:h-10 border flex-shrink-0">
                         <AvatarImage src={activeTherapist.avatarUrl} data-ai-hint={activeTherapist.avatarHint} />
                        <AvatarFallback>
                          <Bot />
                        </AvatarFallback>
                     </Avatar>
-                    <div className="flex flex-col gap-1 max-w-xl">
+                    <div className="flex flex-col gap-1 max-w-[75%] md:max-w-xl">
                       <div className="flex items-center gap-2">
-                          <span className="font-semibold text-sm">{activeTherapist.name} is thinking...</span>
+                          <span className="font-semibold text-xs md:text-sm">{activeTherapist.name} is thinking...</span>
                       </div>
                       <Card className='bg-card rounded-bl-none'>
-                        <CardContent className="p-3 text-sm">
+                        <CardContent className="p-2.5 md:p-3 text-sm">
                           <div className="flex items-center gap-1.5">
                              <span className="h-2 w-2 bg-muted-foreground rounded-full animate-pulse [animation-delay:-0.3s]"></span>
                              <span className="h-2 w-2 bg-muted-foreground rounded-full animate-pulse [animation-delay:-0.15s]"></span>
@@ -517,13 +550,13 @@ export default function ChatPage() {
               )}
             </div>
             
-            <div className="border-t p-4 bg-background/80 backdrop-blur-sm">
+            <div className="border-t p-3 md:p-4 bg-background/80 backdrop-blur-sm">
                <div className="relative max-w-3xl mx-auto">
                     <form onSubmit={handleSendMessage}>
                       <Textarea
                         name="message"
                         placeholder={`Message ${activeTherapist.name}...`}
-                        className="pr-24 min-h-[52px] resize-none"
+                        className="pr-12 md:pr-24 min-h-[52px] resize-none text-sm md:text-base"
                         value={userInput}
                         onChange={(e) => setUserInput(e.target.value)}
                         onKeyDown={(e) => {

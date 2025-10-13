@@ -22,11 +22,19 @@ import {
   Loader2,
   Info,
   Download,
-  Users
+  Users,
+  MoreVertical
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { exportDebateTranscript, formatTimestamp } from '@/lib/debate-export';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 
 type DebateState = 'selecting' | 'playing' | 'paused' | 'finished';
 
@@ -326,9 +334,9 @@ export default function DebatePage() {
   // Debate Viewing Interface
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Participant Sidebar */}
+      {/* Participant Sidebar - Hidden on mobile */}
       <aside className={cn(
-        "border-r bg-card transition-all duration-300 overflow-hidden",
+        "hidden md:block border-r bg-card transition-all duration-300 overflow-hidden",
         showParticipants ? "w-64" : "w-0"
       )}>
         <div className="p-4 w-64">
@@ -390,17 +398,18 @@ export default function DebatePage() {
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col max-w-5xl mx-auto">
+      <div className="flex-1 flex flex-col max-w-5xl mx-auto w-full">
         {/* Header with Controls */}
-        <header className="border-b bg-card p-4 sticky top-0 z-10 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex-1">
-              <h2 className="text-lg font-semibold">{selectedTopicData?.title}</h2>
-              <p className="text-sm text-muted-foreground">
-                Exchange {currentExchange} of 20+ • {messages.length} total messages
+        <header className="border-b bg-card p-3 md:p-4 sticky top-0 z-10 shadow-sm">
+          <div className="flex items-center justify-between mb-2 gap-2">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-base md:text-lg font-semibold truncate">{selectedTopicData?.title}</h2>
+              <p className="text-xs md:text-sm text-muted-foreground">
+                Exchange {currentExchange} of 20+ • {messages.length} messages
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            {/* Desktop Controls */}
+            <div className="hidden md:flex items-center gap-2">
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -439,11 +448,48 @@ export default function DebatePage() {
                 New Topic
               </Button>
             </div>
+
+            {/* Mobile Controls Menu */}
+            <div className="md:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => setShowParticipants(!showParticipants)}>
+                    <Users className="h-4 w-4 mr-2" />
+                    {showParticipants ? 'Hide' : 'Show'} Participants
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExport} disabled={messages.length === 0}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Export Transcript
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={cycleSpeed}>
+                    <Gauge className="h-4 w-4 mr-2" />
+                    Speed: {playbackSpeed}x
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={togglePlayPause} disabled={isGenerating}>
+                    {debateState === 'playing' ? (
+                      <><Pause className="h-4 w-4 mr-2" /> Pause</>
+                    ) : (
+                      <><Play className="h-4 w-4 mr-2" /> {debateState === 'finished' ? 'Replay' : 'Resume'}</>
+                    )}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={resetDebate}>
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    New Topic
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </header>
 
         {/* Debate Messages */}
-        <div ref={debateContainerRef} className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div ref={debateContainerRef} className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
           {messages.map((message, index) => {
             const therapist = THERAPISTS.find(t => t.id === message.speaker);
             const isUser = message.speaker === 'User';
@@ -548,14 +594,14 @@ export default function DebatePage() {
         </div>
 
         {/* User Intervention Input */}
-        <div className="border-t p-4 bg-background/80 backdrop-blur-sm">
+        <div className="border-t p-3 md:p-4 bg-background/80 backdrop-blur-sm">
           <form onSubmit={handleUserIntervention} className="max-w-3xl mx-auto">
             <div className="relative">
               <Textarea
                 placeholder="Ask a question or share your perspective... The therapists will respond!"
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
-                className="pr-12 min-h-[52px] resize-none"
+                className="pr-12 min-h-[52px] resize-none text-sm md:text-base"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
