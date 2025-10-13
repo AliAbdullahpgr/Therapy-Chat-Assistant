@@ -41,3 +41,40 @@ export const THERAPISTS: Therapist[] = [
     avatarHint: johnAvatar?.imageHint ?? 'calm man portrait',
   },
 ];
+
+export type Testimonial = {
+  id: string;
+  name: string;
+  quote: string;
+  avatarUrl: string;
+  avatarHint: string;
+};
+
+const testimonialUser1Avatar = PlaceHolderImages.find(img => img.id === 'testimonial-user-1');
+const testimonialUser2Avatar = PlaceHolderImages.find(img => img.id === 'testimonial-user-2');
+const testimonialUser3Avatar = PlaceHolderImages.find(img => img.id === 'testimonial-user-3');
+
+
+export const TESTIMONIALS: Testimonial[] = [
+  {
+    id: 'user-1',
+    name: 'Alex Johnson',
+    quote: "Speaking with Dr. Sarah has been a transformative experience. I've learned so much about myself and how to handle my anxiety. The platform is so easy to use.",
+    avatarUrl: testimonialUser1Avatar?.imageUrl ?? '',
+    avatarHint: testimonialUser1Avatar?.imageHint ?? 'smiling person',
+  },
+  {
+    id: 'user-2',
+    name: 'Samantha Lee',
+    quote: "Dr. John's direct approach is exactly what I needed. No sugar-coating, just practical advice that gets results. It's like having a mental coach in your pocket.",
+    avatarUrl: testimonialUser2Avatar?.imageUrl ?? '',
+    avatarHint: testimonialUser2Avatar?.imageHint ?? 'thoughtful person',
+  },
+  {
+    id: 'user-3',
+    name: 'Michael Chen',
+    quote: "I was skeptical about AI therapy, but this app changed my mind. The conversations feel real and genuinely helpful. Highly recommended for anyone needing support.",
+    avatarUrl: testimonialUser3Avatar?.imageUrl ?? '',
+    avatarHint: testimonialUser3Avatar?.imageHint ?? 'happy person',
+  }
+];
