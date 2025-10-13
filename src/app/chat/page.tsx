@@ -283,6 +283,17 @@ export default function ChatPage() {
             </Button>
           ))}
         </nav>
+        <div className="p-4 border-t">
+          <Link href="/debate">
+            <Button variant="outline" className="w-full justify-start gap-3">
+              <MessageSquareHeart className="h-5 w-5" />
+              <div className="text-left">
+                <p className="font-semibold">Roundtable Debates</p>
+                <p className="text-xs text-muted-foreground">Watch therapists discuss topics</p>
+              </div>
+            </Button>
+          </Link>
+        </div>
       </aside>
       
       <div className="flex flex-1 flex-col">

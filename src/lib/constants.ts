@@ -78,3 +78,76 @@ export const TESTIMONIALS: Testimonial[] = [
     avatarHint: testimonialUser3Avatar?.imageHint ?? 'happy person',
   }
 ];
+
+// Debate Topics
+export type DebateTopic = {
+  id: string;
+  title: string;
+  description: string;
+  category: 'required' | 'optional';
+  estimatedDuration: string;
+};
+
+export const DEBATE_TOPICS: DebateTopic[] = [
+  // Required Topics
+  {
+    id: 'anxiety-treatment',
+    title: 'Best Approaches for Treating Anxiety',
+    description: 'Comparing different therapeutic interventions for anxiety disorders - from CBT to psychoanalytic to mindfulness approaches.',
+    category: 'required',
+    estimatedDuration: '5-7 minutes',
+  },
+  {
+    id: 'digital-vs-traditional',
+    title: 'Digital Therapy vs Traditional Sessions',
+    description: 'Examining the role of technology in mental health care and how it compares to in-person therapy.',
+    category: 'required',
+    estimatedDuration: '5-7 minutes',
+  },
+  {
+    id: 'work-life-balance',
+    title: 'Work-Life Balance in Modern Times',
+    description: 'Strategies for preventing burnout and maintaining mental wellness in today\'s fast-paced world.',
+    category: 'required',
+    estimatedDuration: '5-7 minutes',
+  },
+  // Optional Topics
+  {
+    id: 'depression-treatment',
+    title: 'Depression Treatment Approaches',
+    description: 'Different methodologies for treating depression - behavioral activation, cognitive restructuring, and depth psychology.',
+    category: 'optional',
+    estimatedDuration: '5-7 minutes',
+  },
+  {
+    id: 'medication-role',
+    title: 'The Role of Medication in Mental Health',
+    description: 'Discussing when medication is appropriate, its benefits, limitations, and the therapy-medication relationship.',
+    category: 'optional',
+    estimatedDuration: '5-7 minutes',
+  },
+  {
+    id: 'childhood-trauma',
+    title: 'Childhood Trauma and Adult Relationships',
+    description: 'How early experiences shape attachment patterns and relationship dynamics in adulthood.',
+    category: 'optional',
+    estimatedDuration: '5-7 minutes',
+  },
+  {
+    id: 'sleep-disorders',
+    title: 'Sleep Disorders and Mental Wellness',
+    description: 'The bidirectional relationship between sleep quality and mental health, with practical interventions.',
+    category: 'optional',
+    estimatedDuration: '5-7 minutes',
+  },
+];
+
+export type DebateMessage = {
+  id: string;
+  speaker: 'Dr. Sarah' | 'Dr. Laura' | 'Dr. John' | 'User';
+  message: string;
+  timestamp: Date;
+  isUserMessage: boolean;
+};
+
+export type PlaybackSpeed = 1 | 1.5 | 2;
