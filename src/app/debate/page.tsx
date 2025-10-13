@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { DEBATE_TOPICS, THERAPISTS, type DebateMessage, type PlaybackSpeed } from '@/lib/constants';
@@ -20,10 +20,13 @@ import {
   Gauge,
   ArrowLeft,
   Loader2,
-  Info
+  Info,
+  Download,
+  Users
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { exportDebateTranscript, formatTimestamp } from '@/lib/debate-export';
 
 type DebateState = 'selecting' | 'playing' | 'paused' | 'finished';
 
@@ -39,6 +42,7 @@ export default function DebatePage() {
   const [userInput, setUserInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [nextSpeaker, setNextSpeaker] = useState<'Dr. Sarah' | 'Dr. Laura' | 'Dr. John'>('Dr. Sarah');
+  const [showParticipants, setShowParticipants] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const debateContainerRef = useRef<HTMLDivElement>(null);
@@ -57,20 +61,6 @@ export default function DebatePage() {
     }
   }, [messages]);
 
-  // Auto-play debate
-  useEffect(() => {
-    if (debateState === 'playing' && currentExchange < 20 && !isGenerating) {
-      const delay = (3000 / playbackSpeed); // Base delay of 3 seconds
-      const timer = setTimeout(() => {
-        generateNextExchange();
-      }, delay);
-      
-      return () => clearTimeout(timer);
-    } else if (debateState === 'playing' && currentExchange >= 20) {
-      setDebateState('finished');
-    }
-  }, [debateState, currentExchange, playbackSpeed, isGenerating]);
-
   const startDebate = (topicId: string) => {
     setSelectedTopic(topicId);
     setMessages([]);
@@ -79,7 +69,7 @@ export default function DebatePage() {
     setDebateState('playing');
   };
 
-  const generateNextExchange = async () => {
+  const generateNextExchange = useCallback(async () => {
     if (!selectedTopic) return;
     
     setIsGenerating(true);
@@ -116,11 +106,33 @@ export default function DebatePage() {
     } finally {
       setIsGenerating(false);
     }
-  };
+  }, [selectedTopic, messages, currentExchange, nextSpeaker]);
+
+  // Auto-play debate
+  useEffect(() => {
+    if (debateState === 'playing' && currentExchange < 20 && !isGenerating) {
+      const delay = (3000 / playbackSpeed); // Base delay of 3 seconds
+      const timer = setTimeout(() => {
+        generateNextExchange();
+      }, delay);
+      
+      return () => clearTimeout(timer);
+    } else if (debateState === 'playing' && currentExchange >= 20) {
+      setDebateState('finished');
+    }
+  }, [debateState, currentExchange, playbackSpeed, isGenerating, generateNextExchange]);
 
   const handleUserIntervention = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userInput.trim() || !selectedTopic) return;
+
+    const wasPaused = debateState === 'paused';
+    const wasPlaying = debateState === 'playing';
+    
+    // Temporarily pause if playing
+    if (wasPlaying) {
+      setDebateState('paused');
+    }
 
     // Add user message
     const userMessage: DebateMessage = {
@@ -132,10 +144,60 @@ export default function DebatePage() {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const userInputText = userInput.trim();
     setUserInput('');
     
-    // Pause to let user message be read
-    setDebateState('paused');
+    // Generate a response from the next therapist addressing the user's comment
+    if (!selectedTopic) return;
+    
+    const topic = DEBATE_TOPICS.find(t => t.id === selectedTopic);
+    if (!topic) return;
+
+    setIsGenerating(true);
+    
+    try {
+      const previousExchanges = messages
+        .filter(m => !m.isUserMessage)
+        .map(m => ({
+          speaker: m.speaker as 'Dr. Sarah' | 'Dr. Laura' | 'Dr. John',
+          message: m.message,
+        }));
+
+      // Add user's message to context
+      const contextWithUser = [
+        ...previousExchanges,
+        { speaker: 'Dr. Sarah' as const, message: `User asked: "${userInputText}"` }
+      ];
+
+      const result = await actions.generateDebateExchange({
+        topic: topic.title,
+        topicDescription: topic.description,
+        exchangeNumber: currentExchange + 1,
+        previousExchanges: contextWithUser,
+        currentSpeaker: nextSpeaker,
+      });
+
+      const responseMessage: DebateMessage = {
+        id: `${Date.now()}-${result.speaker}`,
+        speaker: result.speaker,
+        message: result.message,
+        timestamp: new Date(),
+        isUserMessage: false,
+      };
+
+      setMessages(prev => [...prev, responseMessage]);
+      setCurrentExchange(prev => prev + 1);
+      setNextSpeaker(result.nextSpeaker);
+      
+      // Resume playing if it was playing before
+      if (wasPlaying) {
+        setDebateState('playing');
+      }
+    } catch (error) {
+      console.error('[Debate] Error generating response to user:', error);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const resetDebate = () => {
@@ -167,7 +229,21 @@ export default function DebatePage() {
     });
   };
 
+  const handleExport = () => {
+    if (!selectedTopicData || messages.length === 0) return;
+    exportDebateTranscript(messages, selectedTopicData.title, selectedTopicData.description);
+  };
+
   const selectedTopicData = selectedTopic ? DEBATE_TOPICS.find(t => t.id === selectedTopic) : null;
+
+  // Get participant statistics
+  const participantStats = React.useMemo(() => {
+    const stats = new Map<string, number>();
+    messages.forEach(msg => {
+      stats.set(msg.speaker, (stats.get(msg.speaker) || 0) + 1);
+    });
+    return stats;
+  }, [messages]);
 
   // Topic Selection View
   if (debateState === 'selecting') {
@@ -243,17 +319,98 @@ export default function DebatePage() {
   // Debate Viewing Interface
   return (
     <div className="flex min-h-screen bg-background">
+      {/* Participant Sidebar */}
+      <aside className={cn(
+        "border-r bg-card transition-all duration-300 overflow-hidden",
+        showParticipants ? "w-64" : "w-0"
+      )}>
+        <div className="p-4 w-64">
+          <div className="flex items-center gap-2 mb-4">
+            <Users className="h-5 w-5" />
+            <h3 className="font-semibold">Participants</h3>
+          </div>
+          
+          <div className="space-y-3">
+            {THERAPISTS.map(therapist => {
+              const messageCount = participantStats.get(therapist.id) || 0;
+              const isActive = nextSpeaker === therapist.id && isGenerating;
+              
+              return (
+                <div 
+                  key={therapist.id}
+                  className={cn(
+                    "flex items-start gap-3 p-3 rounded-lg border-2 transition-all",
+                    therapist.borderColor,
+                    isActive && "ring-2 ring-offset-2 ring-primary animate-pulse"
+                  )}
+                >
+                  <Avatar className={cn("w-10 h-10 border-2", therapist.borderColor)}>
+                    <AvatarImage src={therapist.avatarUrl} />
+                    <AvatarFallback className={therapist.bgColor}>
+                      {therapist.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className={cn("font-semibold text-sm", therapist.color)}>
+                      {therapist.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {therapist.title}
+                    </p>
+                    <Badge variant="secondary" className="mt-1 text-xs">
+                      {messageCount} {messageCount === 1 ? 'message' : 'messages'}
+                    </Badge>
+                  </div>
+                </div>
+              );
+            })}
+            
+            {participantStats.has('User') && (
+              <div className="flex items-start gap-3 p-3 rounded-lg border-2 border-primary">
+                <Avatar className="w-10 h-10 border-2 border-primary">
+                  <AvatarFallback>U</AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <p className="font-semibold text-sm">You</p>
+                  <p className="text-xs text-muted-foreground">Participant</p>
+                  <Badge variant="secondary" className="mt-1 text-xs">
+                    {participantStats.get('User')} {participantStats.get('User') === 1 ? 'message' : 'messages'}
+                  </Badge>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </aside>
+
       <div className="flex-1 flex flex-col max-w-5xl mx-auto">
         {/* Header with Controls */}
-        <header className="border-b bg-card p-4 sticky top-0 z-10">
+        <header className="border-b bg-card p-4 sticky top-0 z-10 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <div>
+            <div className="flex-1">
               <h2 className="text-lg font-semibold">{selectedTopicData?.title}</h2>
               <p className="text-sm text-muted-foreground">
-                Exchange {currentExchange} of 20+
+                Exchange {currentExchange} of 20+ • {messages.length} total messages
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowParticipants(!showParticipants)}
+              >
+                <Users className="h-4 w-4 mr-2" />
+                {showParticipants ? 'Hide' : 'Show'}
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleExport}
+                disabled={messages.length === 0}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
               <Button variant="outline" size="sm" onClick={cycleSpeed}>
                 <Gauge className="h-4 w-4 mr-2" />
                 {playbackSpeed}x
@@ -279,8 +436,8 @@ export default function DebatePage() {
         </header>
 
         {/* Debate Messages */}
-        <div ref={debateContainerRef} className="flex-1 overflow-y-auto p-6 space-y-4">
-          {messages.map((message) => {
+        <div ref={debateContainerRef} className="flex-1 overflow-y-auto p-6 space-y-6">
+          {messages.map((message, index) => {
             const therapist = THERAPISTS.find(t => t.id === message.speaker);
             const isUser = message.speaker === 'User';
 
@@ -288,30 +445,53 @@ export default function DebatePage() {
               <div 
                 key={message.id} 
                 className={cn(
-                  "flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500",
+                  "flex items-start gap-3 animate-in fade-in slide-in-from-bottom-4 duration-700",
                   isUser && "flex-row-reverse"
                 )}
+                style={{ animationDelay: `${index * 50}ms` }}
               >
-                <Avatar className="w-10 h-10 border-2">
+                <Avatar className={cn(
+                  "w-12 h-12 border-2 shadow-sm flex-shrink-0",
+                  therapist?.borderColor || "border-primary"
+                )}>
                   {therapist && <AvatarImage src={therapist.avatarUrl} />}
-                  <AvatarFallback>{message.speaker.charAt(0)}</AvatarFallback>
+                  <AvatarFallback className={therapist?.bgColor || "bg-primary/10"}>
+                    <span className={therapist?.color || "text-primary"}>
+                      {message.speaker.charAt(0)}
+                    </span>
+                  </AvatarFallback>
                 </Avatar>
-                <div className={cn("flex flex-col gap-1 max-w-2xl", isUser && "items-end")}>
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-sm">
+                <div className={cn("flex flex-col gap-2 max-w-2xl flex-1", isUser && "items-end")}>
+                  <div className={cn("flex items-center gap-2", isUser && "flex-row-reverse")}>
+                    <span className={cn(
+                      "font-semibold text-sm",
+                      therapist?.color || (isUser ? "text-primary" : "text-foreground")
+                    )}>
                       {therapist?.name || message.speaker}
                     </span>
                     {therapist && (
-                      <Badge variant="outline" className="text-xs">
+                      <Badge 
+                        variant="outline" 
+                        className={cn("text-xs", therapist.borderColor)}
+                      >
                         {therapist.title}
                       </Badge>
                     )}
+                    <span className="text-xs text-muted-foreground">
+                      {formatTimestamp(message.timestamp)}
+                    </span>
                   </div>
                   <Card className={cn(
-                    isUser ? 'bg-primary text-primary-foreground' : 'bg-card'
+                    "border-2 transition-shadow hover:shadow-md",
+                    isUser 
+                      ? 'bg-primary text-primary-foreground border-primary' 
+                      : therapist?.borderColor || 'border-border',
+                    !isUser && therapist?.bgColor
                   )}>
-                    <CardContent className="p-3">
-                      <p className="text-sm leading-relaxed">{message.message}</p>
+                    <CardContent className="p-4">
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                        {message.message}
+                      </p>
                     </CardContent>
                   </Card>
                 </div>
@@ -320,19 +500,40 @@ export default function DebatePage() {
           })}
           
           {isGenerating && (
-            <div className="flex items-center gap-3 opacity-60">
-              <Avatar className="w-10 h-10 border-2">
-                <AvatarFallback>
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                </AvatarFallback>
-              </Avatar>
-              <Card className="bg-muted">
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">{nextSpeaker} is thinking...</span>
-                  </div>
-                </CardContent>
-              </Card>
+            <div className="flex items-start gap-3 animate-pulse">
+              {(() => {
+                const nextTherapist = THERAPISTS.find(t => t.id === nextSpeaker);
+                return (
+                  <>
+                    <Avatar className={cn(
+                      "w-12 h-12 border-2",
+                      nextTherapist?.borderColor
+                    )}>
+                      <AvatarFallback className={nextTherapist?.bgColor}>
+                        <Loader2 className={cn("h-5 w-5 animate-spin", nextTherapist?.color)} />
+                      </AvatarFallback>
+                    </Avatar>
+                    <Card className={cn(
+                      "border-2",
+                      nextTherapist?.borderColor,
+                      nextTherapist?.bgColor
+                    )}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-2">
+                          <span className={cn("text-sm font-medium", nextTherapist?.color)}>
+                            {nextSpeaker} is composing a response
+                          </span>
+                          <div className="flex gap-1">
+                            <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                            <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                            <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </>
+                );
+              })()}
             </div>
           )}
           
@@ -344,7 +545,7 @@ export default function DebatePage() {
           <form onSubmit={handleUserIntervention} className="max-w-3xl mx-auto">
             <div className="relative">
               <Textarea
-                placeholder="Jump in with your question or comment..."
+                placeholder="Ask a question or share your perspective... The therapists will respond!"
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
                 className="pr-12 min-h-[52px] resize-none"
@@ -365,7 +566,7 @@ export default function DebatePage() {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              The debate will pause when you send a message. Press Resume to continue.
+              💬 Ask questions or share your thoughts - a therapist will respond to you! Press Enter to send (Shift+Enter for new line).
             </p>
           </form>
         </div>

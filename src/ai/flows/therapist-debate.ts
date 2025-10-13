@@ -77,6 +77,10 @@ Your tone is calm, direct, and grounded. You emphasize simplicity and actionable
       stageInstruction = 'This is the concluding phase. Synthesize the discussion, acknowledge other perspectives, and emphasize practical takeaways.';
     }
 
+    // Check if the last exchange contains a user question
+    const lastExchange = previousExchanges[previousExchanges.length - 1];
+    const hasUserQuestion = lastExchange?.message?.includes('User asked:');
+
     const prompt = `You are participating in a professional roundtable debate on: "${topic}"
 
 Topic Description: ${topicDescription}
@@ -91,12 +95,14 @@ ${debateHistory || 'You are starting the debate.'}
 Guidelines for your response:
 1. Stay in character and speak from your therapeutic orientation
 2. Reference or respond to specific points made by other therapists
-3. Keep responses concise (2-4 sentences, max 80 words)
+${hasUserQuestion ? '3. **IMPORTANT**: A participant just asked a question - address it directly in your response' : '3. Keep responses concise (2-4 sentences, max 80 words)'}
 4. Be professional but show personality and conviction
-5. Occasionally disagree respectfully with other approaches
+5. ${hasUserQuestion ? 'Answer the participant\'s question from your therapeutic perspective' : 'Occasionally disagree respectfully with other approaches'}
 6. Use natural, conversational language
 7. Avoid repetition of points already made
 8. Make it educational for observers
+
+${hasUserQuestion ? 'A participant has joined the discussion with a question. Acknowledge and respond to their input while staying in character.' : ''}
 
 Generate your contribution to this debate as ${currentSpeaker}.`;
 

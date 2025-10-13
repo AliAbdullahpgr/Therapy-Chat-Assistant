@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, User as UserIcon, Send, MessageSquareHeart, LogOut } from 'lucide-react';
+import { Bot, User as UserIcon, Send, MessageSquareHeart, LogOut, MoreVertical, Trash2 } from 'lucide-react';
 import { THERAPISTS, type Therapist, type Speaker } from '@/lib/constants';
 import * as actions from '../actions';
 import { useToast } from "@/hooks/use-toast";
@@ -10,12 +10,28 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { logOut } from '@/lib/auth-service';
-import { saveConversation, loadConversation } from '@/lib/conversation-service';
+import { saveConversation, loadConversation, clearConversation } from '@/lib/conversation-service';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type Message = {
   id: string;
@@ -56,6 +72,7 @@ export default function ChatPage() {
   const [activeTherapist, setActiveTherapist] = useState<Therapist>(THERAPISTS[0]);
   const [isClient, setIsClient] = useState(false);
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
+  const [therapistToDelete, setTherapistToDelete] = useState<Therapist | null>(null);
 
   // Protect route - redirect to login if not authenticated
   useEffect(() => {
@@ -247,6 +264,43 @@ export default function ChatPage() {
     setActiveTherapist(therapist);
   }
 
+  const handleClearConversation = async (therapist: Therapist) => {
+    try {
+      console.log(`[Chat] 🗑️ Clearing conversation for ${therapist.id}...`);
+      
+      // Clear from Firestore
+      await clearConversation(therapist.id);
+      
+      // Reset to welcome message in state
+      const welcomeMessage: Message = {
+        id: `${therapist.id}-${Date.now()}`,
+        speaker: therapist.id,
+        content: `Hello, I'm ${therapist.name}. How can I help you today?`,
+        timestamp: new Date(),
+      };
+      
+      setMessages(prev => ({
+        ...prev,
+        [therapist.id]: [welcomeMessage]
+      }));
+      
+      toast({
+        title: "Conversation Cleared",
+        description: `Your conversation with ${therapist.name} has been deleted and reset.`,
+      });
+      
+      console.log(`[Chat] ✅ Conversation cleared successfully for ${therapist.id}`);
+      setTherapistToDelete(null);
+    } catch (error) {
+      console.error('[Chat] ❌ Error clearing conversation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to clear conversation. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const PersonaIcon = ({ speaker, className }: { speaker: Speaker, className?: string }) => {
     const Svg = {
       'User': UserIcon,
@@ -266,21 +320,44 @@ export default function ChatPage() {
         </div>
         <nav className="flex-1 overflow-y-auto p-4 space-y-2">
           {THERAPISTS.map(therapist => (
-            <Button
-              key={therapist.id}
-              variant={activeTherapist.id === therapist.id ? 'secondary' : 'ghost'}
-              className="w-full justify-start gap-3 h-14"
-              onClick={() => handleTherapistChange(therapist)}
-            >
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={therapist.avatarUrl} data-ai-hint={therapist.avatarHint} />
-                <AvatarFallback>{therapist.name.charAt(3)}</AvatarFallback>
-              </Avatar>
-              <div className='text-left'>
-                <p className="font-semibold">{therapist.name}</p>
-                <p className="text-sm text-muted-foreground">{therapist.title}</p>
-              </div>
-            </Button>
+            <div key={therapist.id} className="relative group">
+              <Button
+                variant={activeTherapist.id === therapist.id ? 'secondary' : 'ghost'}
+                className="w-full justify-start gap-3 h-14 pr-12"
+                onClick={() => handleTherapistChange(therapist)}
+              >
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={therapist.avatarUrl} data-ai-hint={therapist.avatarHint} />
+                  <AvatarFallback>{therapist.name.charAt(3)}</AvatarFallback>
+                </Avatar>
+                <div className='text-left'>
+                  <p className="font-semibold">{therapist.name}</p>
+                  <p className="text-sm text-muted-foreground">{therapist.title}</p>
+                </div>
+              </Button>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive cursor-pointer"
+                    onClick={() => setTherapistToDelete(therapist)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Clear Conversation
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           ))}
         </nav>
         <div className="p-4 border-t">
@@ -309,19 +386,33 @@ export default function ChatPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-sm font-semibold">{user?.email}</p>
-              <p className="text-xs text-muted-foreground">Logged in</p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleLogout}
-              className="gap-2"
-            >
-              <LogOut className="h-4 w-4" />
-              Logout
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="relative h-10 w-10 rounded-full p-0"
+                >
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback className="bg-green-600 text-white font-semibold">
+                      {user?.email?.charAt(0).toUpperCase() || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <div className="flex flex-col space-y-1 px-2 py-2">
+                  <p className="text-xs text-muted-foreground">Logged in as</p>
+                  <p className="text-sm font-medium truncate">{user?.email}</p>
+                </div>
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="cursor-pointer text-destructive focus:text-destructive"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
@@ -431,6 +522,29 @@ export default function ChatPage() {
             </div>
         </main>
       </div>
+
+      {/* Confirmation Dialog for Clearing Conversation */}
+      <AlertDialog open={!!therapistToDelete} onOpenChange={(open) => !open && setTherapistToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear Conversation?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete your entire conversation history with{' '}
+              <span className="font-semibold">{therapistToDelete?.name}</span>. 
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => therapistToDelete && handleClearConversation(therapistToDelete)}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Clear Conversation
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

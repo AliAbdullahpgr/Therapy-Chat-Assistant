@@ -1,5 +1,5 @@
 import { db, auth } from '@/lib/firebase';
-import { doc, getDoc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, deleteField } from 'firebase/firestore';
 
 const CONVERSATIONS_COLLECTION = 'conversations';
 
@@ -103,11 +103,9 @@ export async function clearConversation(therapistId: string): Promise<void> {
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
-      const data = docSnap.data();
-      delete data[therapistId];
-
+      // Use deleteField() to properly remove the therapist's conversation field
       await updateDoc(docRef, {
-        [therapistId]: deleteDoc as any,
+        [therapistId]: deleteField(),
         lastUpdated: new Date().toISOString(),
       });
     }
