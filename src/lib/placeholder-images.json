@@ -1,3 +1,22 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "therapist-chen",
+      "description": "Avatar for Dr. Chen",
+      "imageUrl": "https://picsum.photos/seed/101/100/100",
+      "imageHint": "professional portrait"
+    },
+    {
+      "id": "therapist-williams",
+      "description": "Avatar for Dr. Williams",
+      "imageUrl": "https://picsum.photos/seed/102/100/100",
+      "imageHint": "warm portrait"
+    },
+    {
+      "id": "therapist-rodriguez",
+      "description": "Avatar for Dr. Rodriguez",
+      "imageUrl": "https://picsum.photos/seed/103/100/100",
+      "imageHint": "thoughtful portrait"
+    }
+  ]
 }
