@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Bot, User as UserIcon, Send, MessageSquareHeart, Mic, X } from 'lucide-react';
+import { Bot, User as UserIcon, Send, MessageSquareHeart } from 'lucide-react';
 import { THERAPISTS, type Therapist, type Speaker } from '@/lib/constants';
 import * as actions from './actions';
 import { useToast } from "@/hooks/use-toast";
@@ -59,8 +59,10 @@ export default function Home() {
     setIsThinking(true);
 
     try {
+      const currentConversation = [...messages, { speaker: 'User', content: userMessageContent, id: '', timestamp: new Date() }];
+      
       const { response } = await actions.aiRespondsToSpeakers({
-        conversationHistory: [...messages, { speaker: 'User', message: userMessageContent }].map(m => ({ speaker: m.speaker, message: m.content })),
+        conversationHistory: currentConversation.map(m => ({ speaker: m.speaker, message: m.content })),
         currentSpeaker: activeTherapist.id,
         drSarahPersona: THERAPISTS.find(t => t.id === 'Dr. Sarah')?.persona ?? '',
         drLauraPersona: THERAPISTS.find(t => t.id === 'Dr. Laura')?.persona ?? '',
