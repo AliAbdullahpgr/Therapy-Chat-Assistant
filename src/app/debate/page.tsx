@@ -54,12 +54,12 @@ export default function DebatePage() {
     }
   }, [user, isEmailVerified, authLoading, router]);
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom when messages change or when generating starts
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages]);
+  }, [messages, isGenerating]);
 
   const startDebate = (topicId: string) => {
     setSelectedTopic(topicId);
@@ -146,6 +146,13 @@ export default function DebatePage() {
     setMessages(prev => [...prev, userMessage]);
     const userInputText = userInput.trim();
     setUserInput('');
+    
+    // Scroll to bottom after user message
+    setTimeout(() => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 100);
     
     // Generate a response from the next therapist addressing the user's comment
     if (!selectedTopic) return;
