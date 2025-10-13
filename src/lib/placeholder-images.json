@@ -17,6 +17,24 @@
       "description": "Avatar for Dr. John",
       "imageUrl": "https://picsum.photos/seed/103/100/100",
       "imageHint": "calm man portrait"
+    },
+    {
+      "id": "testimonial-user-1",
+      "description": "Avatar for Alex Johnson",
+      "imageUrl": "https://picsum.photos/seed/201/100/100",
+      "imageHint": "smiling person"
+    },
+    {
+      "id": "testimonial-user-2",
+      "description": "Avatar for Samantha Lee",
+      "imageUrl": "https://picsum.photos/seed/202/100/100",
+      "imageHint": "thoughtful person"
+    },
+    {
+      "id": "testimonial-user-3",
+      "description": "Avatar for Michael Chen",
+      "imageUrl": "https://picsum.photos/seed/203/100/100",
+      "imageHint": "happy person"
     }
   ]
 }
