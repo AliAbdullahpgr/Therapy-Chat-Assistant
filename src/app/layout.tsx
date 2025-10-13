@@ -3,8 +3,8 @@ import { Toaster } from "@/components/ui/toaster"
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Therapy Debate',
-  description: 'An AI-powered debate between different therapy personas.',
+  title: 'AI Therapy Chat',
+  description: 'An AI-powered chat with different therapy personas.',
 };
 
 export default function RootLayout({

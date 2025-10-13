@@ -1,22 +1,22 @@
 {
   "placeholderImages": [
     {
-      "id": "therapist-chen",
-      "description": "Avatar for Dr. Chen",
+      "id": "therapist-sarah",
+      "description": "Avatar for Dr. Sarah",
       "imageUrl": "https://picsum.photos/seed/101/100/100",
-      "imageHint": "professional portrait"
+      "imageHint": "professional woman portrait"
     },
     {
-      "id": "therapist-williams",
-      "description": "Avatar for Dr. Williams",
+      "id": "therapist-laura",
+      "description": "Avatar for Dr. Laura",
       "imageUrl": "https://picsum.photos/seed/102/100/100",
-      "imageHint": "warm portrait"
+      "imageHint": "compassionate woman portrait"
     },
     {
-      "id": "therapist-rodriguez",
-      "description": "Avatar for Dr. Rodriguez",
+      "id": "therapist-john",
+      "description": "Avatar for Dr. John",
       "imageUrl": "https://picsum.photos/seed/103/100/100",
-      "imageHint": "thoughtful portrait"
+      "imageHint": "calm man portrait"
     }
   ]
 }

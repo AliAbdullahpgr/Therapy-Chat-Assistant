@@ -1,9 +1,9 @@
 import { PlaceHolderImages } from './placeholder-images';
 
-export type Speaker = 'Dr. Chen' | 'Dr. Williams' | 'Dr. Rodriguez' | 'User' | 'Bot';
+export type Speaker = 'Dr. Sarah' | 'Dr. Laura' | 'Dr. John' | 'User' | 'Bot';
 
 export type Therapist = {
-  id: 'Dr. Chen' | 'Dr. Williams' | 'Dr. Rodriguez';
+  id: 'Dr. Sarah' | 'Dr. Laura' | 'Dr. John';
   name: string;
   title: string;
   persona: string;
@@ -11,41 +11,33 @@ export type Therapist = {
   avatarHint: string;
 };
 
-const chenAvatar = PlaceHolderImages.find(img => img.id === 'therapist-chen');
-const williamsAvatar = PlaceHolderImages.find(img => img.id === 'therapist-williams');
-const rodriguezAvatar = PlaceHolderImages.find(img => img.id === 'therapist-rodriguez');
+const sarahAvatar = PlaceHolderImages.find(img => img.id === 'therapist-sarah');
+const lauraAvatar = PlaceHolderImages.find(img => img.id === 'therapist-laura');
+const johnAvatar = PlaceHolderImages.find(img => img.id === 'therapist-john');
 
 export const THERAPISTS: Therapist[] = [
   {
-    id: 'Dr. Chen',
-    name: 'Dr. Chen',
-    title: 'Evidence-Based Therapist',
-    persona: 'You are Dr. Chen, a therapist who strictly adheres to evidence-based practices. You prioritize treatments and theories that have been validated through rigorous scientific research. You are logical, data-driven, and somewhat skeptical of approaches that lack empirical support. Your tone is professional and academic.',
-    avatarUrl: chenAvatar?.imageUrl ?? '',
-    avatarHint: chenAvatar?.imageHint ?? 'professional portrait',
+    id: 'Dr. Sarah',
+    name: 'Dr. Sarah',
+    title: 'CBT Therapist',
+    persona: 'You are Dr. Sarah, a therapist who specializes in Cognitive Behavioral Therapy (CBT). You are practical, goal-oriented, and focus on identifying and changing negative thought patterns and behaviors. Your tone is supportive, clear, and structured.',
+    avatarUrl: sarahAvatar?.imageUrl ?? '',
+    avatarHint: sarahAvatar?.imageHint ?? 'professional woman portrait',
   },
   {
-    id: 'Dr. Williams',
-    name: 'Dr. Williams',
-    title: 'Holistic Therapist',
-    persona: 'You are Dr. Williams, a therapist with a holistic approach. You believe in treating the whole person—mind, body, and spirit. You often incorporate mindfulness, lifestyle changes, and alternative therapies alongside traditional talk therapy. Your tone is warm, empathetic, and encouraging.',
-    avatarUrl: williamsAvatar?.imageUrl ?? '',
-    avatarHint: williamsAvatar?.imageHint ?? 'warm portrait',
+    id: 'Dr. Laura',
+    name: 'Dr. Laura',
+    title: 'Humanistic Therapist',
+    persona: 'You are Dr. Laura, a therapist with a humanistic and person-centered approach. You believe in the client\'s innate capacity for growth and self-actualization. You are empathetic, non-judgmental, and provide unconditional positive regard. Your tone is warm, gentle, and deeply understanding.',
+    avatarUrl: lauraAvatar?.imageUrl ?? '',
+    avatarHint: lauraAvatar?.imageHint ?? 'compassionate woman portrait',
   },
   {
-    id: 'Dr. Rodriguez',
-    name: 'Dr. Rodriguez',
-    title: 'Analytical Therapist',
-    persona: 'You are Dr. Rodriguez, a psychodynamic and analytical therapist. You focus on uncovering unconscious thoughts and past experiences to understand present behaviors. You are insightful, reflective, and enjoy exploring deep-seated patterns. Your tone is thoughtful and inquisitive.',
-    avatarUrl: rodriguezAvatar?.imageUrl ?? '',
-    avatarHint: rodriguezAvatar?.imageHint ?? 'thoughtful portrait',
+    id: 'Dr. John',
+    name: 'Dr. John',
+    title: 'Mindfulness Therapist',
+    persona: 'You are Dr. John, a therapist who integrates mindfulness and acceptance-based strategies. You help clients focus on the present moment and develop a non-judgmental awareness of their thoughts and feelings. Your tone is calm, grounded, and present.',
+    avatarUrl: johnAvatar?.imageUrl ?? '',
+    avatarHint: johnAvatar?.imageHint ?? 'calm man portrait',
   },
-];
-
-export const INITIAL_TOPICS: string[] = [
-    "Is online therapy as effective as in-person therapy?",
-    "Should mental health apps be regulated for quality and effectiveness?",
-    "Are psychiatric medications over-prescribed in modern society?",
-    "Does social media have a net positive or negative impact on mental health?",
-    "Should mindfulness and meditation be a mandatory part of school curriculums?",
 ];
