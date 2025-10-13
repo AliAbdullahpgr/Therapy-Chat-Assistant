@@ -45,6 +45,11 @@ export default function Home() {
   const [isThinking, setIsThinking] = useState(false);
   const [userInput, setUserInput] = useState("");
   const [activeTherapist, setActiveTherapist] = useState<Therapist>(THERAPISTS[0]);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const { toast } = useToast();
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -175,7 +180,7 @@ export default function Home() {
                       <div className={cn("flex flex-col gap-1 max-w-xl", isUser && "items-end")}>
                         <div className="flex items-center gap-2">
                             <span className="font-semibold text-sm">{speakerInfo?.name || message.speaker}</span>
-                            <span className="text-xs text-muted-foreground">{message.timestamp.toLocaleTimeString()}</span>
+                            {isClient && <span className="text-xs text-muted-foreground">{message.timestamp.toLocaleTimeString()}</span>}
                         </div>
                         <Card className={cn(isUser ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-card rounded-bl-none')}>
                             <CardContent className="p-3 text-sm">
