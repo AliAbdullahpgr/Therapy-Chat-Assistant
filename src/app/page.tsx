@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Bot, User as UserIcon, Send, MessageSquareHeart } from 'lucide-react';
 import { THERAPISTS, type Therapist, type Speaker } from '@/lib/constants';
 import * as actions from './actions';
@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 type Message = {
   id: string;
@@ -20,33 +19,50 @@ type Message = {
   timestamp: Date;
 };
 
+type ConversationHistory = {
+  [key in Therapist['id']]: Message[];
+};
+
 export default function Home() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ConversationHistory>(() => {
+    const initialMessages: ConversationHistory = {
+      'Dr. Sarah': [],
+      'Dr. Laura': [],
+      'Dr. John': [],
+    };
+    // Initialize with a welcome message for each therapist
+    THERAPISTS.forEach(therapist => {
+        initialMessages[therapist.id].push({
+            id: `${therapist.id}-${Date.now()}`,
+            speaker: therapist.id,
+            content: `Hello, I'm ${therapist.name}. How can I help you today?`,
+            timestamp: new Date(),
+        });
+    });
+    return initialMessages;
+  });
+
   const [isThinking, setIsThinking] = useState(false);
   const [userInput, setUserInput] = useState("");
   const [activeTherapist, setActiveTherapist] = useState<Therapist>(THERAPISTS[0]);
 
   const { toast } = useToast();
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  
+  const activeMessages = messages[activeTherapist.id];
 
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
-  }, [messages]);
-  
-  useEffect(() => {
-    // Start with a welcome message from the initial active therapist
-    setMessages([{
-      id: Date.now().toString(),
-      speaker: activeTherapist.id,
-      content: `Hello, I'm ${activeTherapist.name}. How can I help you today?`,
-      timestamp: new Date()
-    }]);
-  }, []);
+  }, [activeMessages]);
 
-  const addMessage = (speaker: Speaker, content: string) => {
-    setMessages(prev => [...prev, { id: Date.now().toString(), speaker, content, timestamp: new Date() }]);
+  const addMessage = (therapistId: Therapist['id'], speaker: Speaker, content: string) => {
+    const newMessage: Message = { id: Date.now().toString(), speaker, content, timestamp: new Date() };
+    setMessages(prev => ({
+        ...prev,
+        [therapistId]: [...prev[therapistId], newMessage]
+    }));
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -54,12 +70,12 @@ export default function Home() {
     if (!userInput.trim()) return;
 
     const userMessageContent = userInput;
-    addMessage('User', userMessageContent);
+    addMessage(activeTherapist.id, 'User', userMessageContent);
     setUserInput("");
     setIsThinking(true);
 
     try {
-      const currentConversation = [...messages, { speaker: 'User', content: userMessageContent, id: '', timestamp: new Date() }];
+      const currentConversation = [...messages[activeTherapist.id], { speaker: 'User', content: userMessageContent, id: '', timestamp: new Date() }];
       
       const { response } = await actions.aiRespondsToSpeakers({
         conversationHistory: currentConversation.map(m => ({ speaker: m.speaker, message: m.content })),
@@ -69,7 +85,7 @@ export default function Home() {
         drJohnPersona: THERAPISTS.find(t => t.id === 'Dr. John')?.persona ?? '',
       });
 
-      addMessage(activeTherapist.id, response);
+      addMessage(activeTherapist.id, activeTherapist.id, response);
     } catch (error) {
       console.error("Error getting AI response:", error);
       toast({
@@ -77,7 +93,7 @@ export default function Home() {
         description: "Could not get a response from the AI. Please try again.",
         variant: "destructive",
       });
-      addMessage('Bot', 'Sorry, I encountered an error. Please try sending your message again.');
+      addMessage(activeTherapist.id, 'Bot', 'Sorry, I encountered an error. Please try sending your message again.');
     } finally {
       setIsThinking(false);
     }
@@ -86,13 +102,6 @@ export default function Home() {
   const handleTherapistChange = (therapist: Therapist) => {
     if (therapist.id === activeTherapist.id) return;
     setActiveTherapist(therapist);
-    addMessage('Bot', `You are now speaking with ${therapist.name}.`);
-    // Optional: Have the new therapist introduce themselves
-    setIsThinking(true);
-    setTimeout(() => {
-        addMessage(therapist.id, `Hello, I'm ${therapist.name}. It's nice to meet you. What's on your mind?`);
-        setIsThinking(false);
-    }, 1000);
   }
 
   const PersonaIcon = ({ speaker, className }: { speaker: Speaker, className?: string }) => {
@@ -104,35 +113,52 @@ export default function Home() {
   };
 
   return (
-    <TooltipProvider>
-      <div className="flex h-screen w-full flex-col bg-background font-body">
+    <div className="flex h-screen w-full bg-background font-body">
+      <aside className="w-80 border-r bg-card flex flex-col">
+        <div className="flex h-16 items-center border-b px-6 shrink-0">
+            <div className="flex items-center gap-3">
+                <MessageSquareHeart className="h-7 w-7 text-primary" />
+                <h1 className="text-xl font-headline font-bold">AI Therapists</h1>
+            </div>
+        </div>
+        <nav className="flex-1 overflow-y-auto p-4 space-y-2">
+          {THERAPISTS.map(therapist => (
+            <Button
+              key={therapist.id}
+              variant={activeTherapist.id === therapist.id ? 'secondary' : 'ghost'}
+              className="w-full justify-start gap-3 h-14"
+              onClick={() => handleTherapistChange(therapist)}
+            >
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={therapist.avatarUrl} data-ai-hint={therapist.avatarHint} />
+                <AvatarFallback>{therapist.name.charAt(3)}</AvatarFallback>
+              </Avatar>
+              <div className='text-left'>
+                <p className="font-semibold">{therapist.name}</p>
+                <p className="text-sm text-muted-foreground">{therapist.title}</p>
+              </div>
+            </Button>
+          ))}
+        </nav>
+      </aside>
+      
+      <div className="flex flex-1 flex-col">
         <header className="flex h-16 items-center border-b px-6 shrink-0 bg-card">
           <div className="flex items-center gap-3">
-             <MessageSquareHeart className="h-7 w-7 text-primary" />
-            <h1 className="text-xl font-headline font-bold">AI Therapy Chat</h1>
-          </div>
-          <div className="ml-auto flex items-center gap-4">
-            {THERAPISTS.map(therapist => (
-                <Tooltip key={therapist.id}>
-                    <TooltipTrigger asChild>
-                         <Button variant="ghost" size="icon" onClick={() => handleTherapistChange(therapist)} className={cn("rounded-full h-12 w-12", activeTherapist.id === therapist.id && "ring-2 ring-primary")}>
-                            <Avatar className="h-10 w-10">
-                                <AvatarImage src={therapist.avatarUrl} data-ai-hint={therapist.avatarHint} />
-                                <AvatarFallback>{therapist.name.charAt(3)}</AvatarFallback>
-                            </Avatar>
-                         </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>{therapist.name}</p>
-                        <p className="text-sm text-muted-foreground">{therapist.title}</p>
-                    </TooltipContent>
-                </Tooltip>
-            ))}
+             <Avatar className="h-10 w-10">
+                <AvatarImage src={activeTherapist.avatarUrl} data-ai-hint={activeTherapist.avatarHint} />
+                <AvatarFallback>{activeTherapist.name.charAt(3)}</AvatarFallback>
+            </Avatar>
+            <div>
+                <h2 className="text-lg font-headline font-bold">{activeTherapist.name}</h2>
+                <p className="text-sm text-muted-foreground">{activeTherapist.title}</p>
+            </div>
           </div>
         </header>
+
         <main className="flex-1 flex flex-col overflow-hidden">
             <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-6 space-y-6">
-              {messages.map((message) => {
+              {activeMessages.map((message) => {
                   const speakerInfo = THERAPISTS.find(t => t.id === message.speaker);
                   const isUser = message.speaker === 'User';
                   
@@ -219,8 +245,8 @@ export default function Home() {
                     </form>
                </div>
             </div>
-          </main>
+        </main>
       </div>
-    </TooltipProvider>
+    </div>
   );
 }
