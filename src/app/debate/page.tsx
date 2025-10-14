@@ -11,6 +11,17 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { 
   MessageSquareHeart, 
   Play, 
@@ -24,11 +35,14 @@ import {
   Download,
   Users,
   MoreVertical,
-  Menu
+  Menu,
+  Plus,
+  FileText,
+  FileDown
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { exportDebateTranscript, formatTimestamp } from '@/lib/debate-export';
+import { exportDebateTranscript, exportToMarkdown, exportToPDF, formatTimestamp } from '@/lib/debate-export';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,9 +74,20 @@ export default function DebatePage() {
   const [nextSpeaker, setNextSpeaker] = useState<'Dr. Sarah' | 'Dr. Laura' | 'Dr. John'>('Dr. Sarah');
   const [showParticipants, setShowParticipants] = useState(false);
   const [mobileParticipantsOpen, setMobileParticipantsOpen] = useState(false);
+  const [customTopicDialogOpen, setCustomTopicDialogOpen] = useState(false);
+  const [customTopicTitle, setCustomTopicTitle] = useState('');
+  const [customTopicDescription, setCustomTopicDescription] = useState('');
+  const [customTopicData, setCustomTopicData] = useState<{ title: string; description: string } | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const debateContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Calculate selected topic data (memoized)
+  const selectedTopicData = React.useMemo(() => {
+    if (!selectedTopic) return null;
+    if (selectedTopic === 'custom') return customTopicData;
+    return DEBATE_TOPICS.find(t => t.id === selectedTopic) || null;
+  }, [selectedTopic, customTopicData]);
   
   // Protect route
   useEffect(() => {
@@ -86,12 +111,29 @@ export default function DebatePage() {
     setDebateState('playing');
   };
 
+  const startCustomDebate = () => {
+    if (!customTopicTitle.trim()) return;
+    
+    setCustomTopicData({
+      title: customTopicTitle,
+      description: customTopicDescription || 'Custom debate topic',
+    });
+    setSelectedTopic('custom');
+    setMessages([]);
+    setCurrentExchange(0);
+    setNextSpeaker('Dr. Sarah');
+    setDebateState('playing');
+    setCustomTopicDialogOpen(false);
+    
+    // Reset form
+    setCustomTopicTitle('');
+    setCustomTopicDescription('');
+  };
+
   const generateNextExchange = useCallback(async () => {
-    if (!selectedTopic) return;
+    if (!selectedTopic || !selectedTopicData) return;
     
     setIsGenerating(true);
-    const topic = DEBATE_TOPICS.find(t => t.id === selectedTopic);
-    if (!topic) return;
 
     try {
       const previousExchanges = messages.filter(m => !m.isUserMessage).map(m => ({
@@ -100,8 +142,8 @@ export default function DebatePage() {
       }));
 
       const result = await actions.generateDebateExchange({
-        topic: topic.title,
-        topicDescription: topic.description,
+        topic: selectedTopicData.title,
+        topicDescription: selectedTopicData.description,
         exchangeNumber: currentExchange + 1,
         previousExchanges,
         currentSpeaker: nextSpeaker,
@@ -123,17 +165,17 @@ export default function DebatePage() {
     } finally {
       setIsGenerating(false);
     }
-  }, [selectedTopic, messages, currentExchange, nextSpeaker]);
+  }, [selectedTopic, selectedTopicData, messages, currentExchange, nextSpeaker]);
 
   // Auto-play debate
   useEffect(() => {
     if (debateState === 'playing' && currentExchange < 20 && !isGenerating) {
-      // Speed settings: 1x = 2.5s, 1.5x = 1.5s, 2x = 1s
-      let delay = 2500; // 1x speed (2.5 seconds)
+      // Speed settings: 1x = 4s, 1.5x = 3s, 2x = 2s (slower pacing)
+      let delay = 6000; // 1x speed (4 seconds)
       if (playbackSpeed === 1.5) {
-        delay = 1500; // 1.5x speed (1.5 seconds)
+        delay = 4000; // 1.5x speed (3 seconds)
       } else if (playbackSpeed === 2) {
-        delay = 1000; // 2x speed (1 second)
+        delay = 2000; // 2x speed (2 seconds)
       }
       const timer = setTimeout(() => {
         generateNextExchange();
@@ -149,13 +191,11 @@ export default function DebatePage() {
     e.preventDefault();
     if (!userInput.trim() || !selectedTopic) return;
 
-    const wasPaused = debateState === 'paused';
-    const wasPlaying = debateState === 'playing';
+    // Check if debate is NOT in playing state - if paused, just add message and don't respond
+    const shouldGenerateResponses = debateState === 'playing';
     
-    // Temporarily pause if playing
-    if (wasPlaying) {
-      setDebateState('paused');
-    }
+    // Always pause when user sends a message
+    setDebateState('paused');
 
     // Add user message
     const userMessage: DebateMessage = {
@@ -177,11 +217,14 @@ export default function DebatePage() {
       }
     }, 100);
     
-    // Generate a response from the next therapist addressing the user's comment
-    if (!selectedTopic) return;
+    // If debate was paused, don't generate responses - user must resume first
+    if (!shouldGenerateResponses) {
+      console.log('[Debate] Message sent while paused - no responses generated. Press Resume to continue.');
+      return;
+    }
     
-    const topic = DEBATE_TOPICS.find(t => t.id === selectedTopic);
-    if (!topic) return;
+    // Generate responses from ALL therapists addressing the user's comment
+    if (!selectedTopic || !selectedTopicData) return;
 
     setIsGenerating(true);
     
@@ -199,30 +242,49 @@ export default function DebatePage() {
         { speaker: 'Dr. Sarah' as const, message: `User asked: "${userInputText}"` }
       ];
 
-      const result = await actions.generateDebateExchange({
-        topic: topic.title,
-        topicDescription: topic.description,
-        exchangeNumber: currentExchange + 1,
-        previousExchanges: contextWithUser,
-        currentSpeaker: nextSpeaker,
-      });
-
-      const responseMessage: DebateMessage = {
-        id: `${Date.now()}-${result.speaker}`,
-        speaker: result.speaker,
-        message: result.message,
-        timestamp: new Date(),
-        isUserMessage: false,
-      };
-
-      setMessages(prev => [...prev, responseMessage]);
-      setCurrentExchange(prev => prev + 1);
-      setNextSpeaker(result.nextSpeaker);
+      // Get responses from all three therapists
+      const therapistIds: Array<'Dr. Sarah' | 'Dr. Laura' | 'Dr. John'> = ['Dr. Sarah', 'Dr. Laura', 'Dr. John'];
       
-      // Resume playing if it was playing before
-      if (wasPlaying) {
-        setDebateState('playing');
+      for (let i = 0; i < therapistIds.length; i++) {
+        const therapistId = therapistIds[i];
+        
+        const result = await actions.generateDebateExchange({
+          topic: selectedTopicData.title,
+          topicDescription: selectedTopicData.description,
+          exchangeNumber: currentExchange + 1,
+          previousExchanges: contextWithUser,
+          currentSpeaker: therapistId,
+        });
+
+        const responseMessage: DebateMessage = {
+          id: `${Date.now()}-${result.speaker}-${Math.random()}`,
+          speaker: result.speaker,
+          message: result.message,
+          timestamp: new Date(),
+          isUserMessage: false,
+        };
+
+        setMessages(prev => [...prev, responseMessage]);
+        setCurrentExchange(prev => prev + 1);
+        
+        // Wait for message to be displayed before adding delay
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Scroll to show the new message
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // Add delay AFTER displaying the message (except for the last one)
+        if (i < therapistIds.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay between responses
+        }
       }
+      
+      // Set next speaker to cycle back
+      setNextSpeaker('Dr. Sarah');
+      
+      // Stay paused - user must press resume to continue
     } catch (error) {
       console.error('[Debate] Error generating response to user:', error);
     } finally {
@@ -259,12 +321,21 @@ export default function DebatePage() {
     });
   };
 
-  const handleExport = () => {
+  const handleExport = (format: 'txt' | 'md' | 'pdf') => {
     if (!selectedTopicData || messages.length === 0) return;
-    exportDebateTranscript(messages, selectedTopicData.title, selectedTopicData.description);
+    
+    switch (format) {
+      case 'txt':
+        exportDebateTranscript(messages, selectedTopicData.title, selectedTopicData.description);
+        break;
+      case 'md':
+        exportToMarkdown(messages, selectedTopicData.title, selectedTopicData.description);
+        break;
+      case 'pdf':
+        exportToPDF(messages, selectedTopicData.title, selectedTopicData.description);
+        break;
+    }
   };
-
-  const selectedTopicData = selectedTopic ? DEBATE_TOPICS.find(t => t.id === selectedTopic) : null;
 
   // Get participant statistics
   const participantStats = React.useMemo(() => {
@@ -339,6 +410,70 @@ export default function DebatePage() {
                   </Card>
                 ))}
               </div>
+            </div>
+
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Custom Topic</h2>
+              <Dialog open={customTopicDialogOpen} onOpenChange={setCustomTopicDialogOpen}>
+                <DialogTrigger asChild>
+                  <Card className="cursor-pointer hover:border-primary transition-colors border-dashed border-2">
+                    <CardHeader>
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                          <Plus className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Create Custom Debate</CardTitle>
+                          <CardDescription>Choose your own topic for the therapists to discuss</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader>
+                    <DialogTitle>Create Custom Debate Topic</DialogTitle>
+                    <DialogDescription>
+                      Enter a topic and the three therapists will debate from their unique perspectives.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="topic-title">Topic Title *</Label>
+                      <Input
+                        id="topic-title"
+                        placeholder="e.g., The Role of Medication in Mental Health Treatment"
+                        value={customTopicTitle}
+                        onChange={(e) => setCustomTopicTitle(e.target.value)}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="topic-description">Description (Optional)</Label>
+                      <Textarea
+                        id="topic-description"
+                        placeholder="Add more context about what you'd like the therapists to discuss..."
+                        value={customTopicDescription}
+                        onChange={(e) => setCustomTopicDescription(e.target.value)}
+                        rows={4}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => setCustomTopicDialogOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={startCustomDebate}
+                      disabled={!customTopicTitle.trim()}
+                    >
+                      Start Debate
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
         </div>
@@ -502,15 +637,32 @@ export default function DebatePage() {
                 <Users className="h-4 w-4 mr-2" />
                 {showParticipants ? 'Hide' : 'Show'}
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleExport}
-                disabled={messages.length === 0}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    disabled={messages.length === 0}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleExport('txt')}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Export as TXT
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('md')}>
+                    <FileDown className="h-4 w-4 mr-2" />
+                    Export as Markdown
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('pdf')}>
+                    <FileDown className="h-4 w-4 mr-2" />
+                    Export as PDF
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button variant="outline" size="sm" onClick={cycleSpeed}>
                 <Gauge className="h-4 w-4 mr-2" />
                 {playbackSpeed}x
@@ -542,10 +694,19 @@ export default function DebatePage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={handleExport} disabled={messages.length === 0}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Export Transcript
+                  <DropdownMenuItem onClick={() => handleExport('txt')} disabled={messages.length === 0}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Export as TXT
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('md')} disabled={messages.length === 0}>
+                    <FileDown className="h-4 w-4 mr-2" />
+                    Export as Markdown
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('pdf')} disabled={messages.length === 0}>
+                    <FileDown className="h-4 w-4 mr-2" />
+                    Export as PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={cycleSpeed}>
                     <Gauge className="h-4 w-4 mr-2" />
                     Speed: {playbackSpeed}x
