@@ -37,9 +37,10 @@ export default function LoginPage() {
       await signIn(email, password);
       console.log('[Login] ✅ Login successful, redirecting to chat...');
       router.push('/chat');
-    } catch (err: any) {
+    } catch (err) {
+      const error = err as Error;
       console.error('[Login] ❌ Login error:', err);
-      setError(err.message || 'Failed to sign in. Please try again.');
+      setError(error.message || 'Failed to sign in. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -112,7 +113,7 @@ export default function LoginPage() {
             </Button>
             
             <div className="text-center text-sm text-muted-foreground">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link href="/signup" className="text-primary hover:underline font-semibold">
                 Sign up
               </Link>

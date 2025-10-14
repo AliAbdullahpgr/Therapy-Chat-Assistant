@@ -72,7 +72,7 @@ export async function loadConversation(
       const messagesData = data[therapistId] || [];
 
       // Convert ISO strings back to Date objects
-      const messages = messagesData.map((msg: any) => ({
+      const messages = messagesData.map((msg: { id: string; speaker: string; content: string; timestamp: string }) => ({
         ...msg,
         timestamp: new Date(msg.timestamp),
       }));

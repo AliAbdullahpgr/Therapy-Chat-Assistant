@@ -218,9 +218,6 @@ export function exportToPDF(
   topicTitle: string,
   topicDescription: string
 ): void {
-  const timestamp = format(new Date(), 'yyyy-MM-dd_HH-mm-ss');
-  const filename = `debate-transcript_${timestamp}.pdf`;
-  
   // Build HTML content for PDF
   const participants = new Set<string>();
   messages.forEach(msg => participants.add(msg.speaker));
@@ -233,7 +230,7 @@ export function exportToPDF(
     return '';
   }).join('');
   
-  const messagesList = messages.map((message, index) => {
+  const messagesList = messages.map((message) => {
     const time = format(message.timestamp, 'h:mm:ss a');
     const speakerColor = 
       message.speaker === 'Dr. Sarah' ? '#3b82f6' :

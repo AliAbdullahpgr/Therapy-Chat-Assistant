@@ -846,7 +846,8 @@ export default function DebatePage() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    handleUserIntervention(e as any);
+                    const formEvent = { preventDefault: () => {} } as React.FormEvent<HTMLFormElement>;
+                    handleUserIntervention(formEvent);
                   }
                 }}
               />

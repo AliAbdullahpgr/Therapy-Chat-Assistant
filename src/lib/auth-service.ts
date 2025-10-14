@@ -22,9 +22,10 @@ export async function signUp(email: string, password: string): Promise<UserCrede
     console.log('[Auth] ✅ User created successfully. Verification email sent to:', email);
     
     return userCredential;
-  } catch (error: any) {
+  } catch (error) {
+    const authError = error as { code?: string };
     console.error('[Auth] ❌ Error during signup:', error);
-    throw new Error(getAuthErrorMessage(error.code));
+    throw new Error(getAuthErrorMessage(authError.code || 'auth/unknown-error'));
   }
 }
 
@@ -46,9 +47,10 @@ export async function signIn(email: string, password: string): Promise<UserCrede
     
     console.log('[Auth] ✅ User signed in successfully:', email);
     return userCredential;
-  } catch (error: any) {
+  } catch (error) {
+    const authError = error as { code?: string };
     console.error('[Auth] ❌ Error during signin:', error);
-    throw new Error(getAuthErrorMessage(error.code));
+    throw new Error(getAuthErrorMessage(authError.code || 'auth/unknown-error'));
   }
 }
 
@@ -60,7 +62,7 @@ export async function logOut(): Promise<void> {
     console.log('[Auth] 🚪 Signing out user...');
     await signOut(auth);
     console.log('[Auth] ✅ User signed out successfully');
-  } catch (error: any) {
+  } catch (error) {
     console.error('[Auth] ❌ Error during signout:', error);
     throw new Error('Failed to sign out. Please try again.');
   }
@@ -74,7 +76,7 @@ export async function resendVerificationEmail(user: User): Promise<void> {
     console.log('[Auth] 📧 Resending verification email...');
     await sendEmailVerification(user);
     console.log('[Auth] ✅ Verification email resent successfully');
-  } catch (error: any) {
+  } catch (error) {
     console.error('[Auth] ❌ Error resending verification email:', error);
     throw new Error('Failed to resend verification email. Please try again later.');
   }

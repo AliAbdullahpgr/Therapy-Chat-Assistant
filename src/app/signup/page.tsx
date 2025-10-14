@@ -56,9 +56,10 @@ export default function SignupPage() {
       setTimeout(() => {
         router.push('/verify-email');
       }, 3000);
-    } catch (err: any) {
+    } catch (err) {
+      const error = err as Error;
       console.error('[Signup] ❌ Signup error:', err);
-      setError(err.message || 'Failed to create account. Please try again.');
+      setError(error.message || 'Failed to create account. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -74,7 +75,7 @@ export default function SignupPage() {
             </div>
             <CardTitle className="text-2xl font-headline">Account Created!</CardTitle>
             <CardDescription>
-              We've sent a verification email to <strong>{email}</strong>
+              We&apos;ve sent a verification email to <strong>{email}</strong>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

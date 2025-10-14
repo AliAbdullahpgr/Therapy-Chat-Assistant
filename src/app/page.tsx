@@ -87,7 +87,7 @@ export default function LandingPage() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-muted-foreground italic">"{testimonial.quote}"</p>
+                    <p className="text-muted-foreground italic">&quot;{testimonial.quote}&quot;</p>
                   </CardContent>
                 </Card>
               ))}

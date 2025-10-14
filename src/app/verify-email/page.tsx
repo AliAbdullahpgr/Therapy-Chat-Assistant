@@ -29,9 +29,10 @@ export default function VerifyEmailPage() {
     try {
       await resendVerificationEmail(user);
       setMessage('Verification email sent! Please check your inbox.');
-    } catch (err: any) {
-      setError(err.message || 'Failed to resend email. Please try again.');
-    } finally {
+    } catch (err) {
+      const error = err as Error;
+      setError(error.message || 'Failed to resend email. Please try again.');
+    } finally{
       setLoading(false);
     }
   };
@@ -59,7 +60,7 @@ export default function VerifyEmailPage() {
           </div>
           <CardTitle className="text-2xl font-headline">Verify Your Email</CardTitle>
           <CardDescription>
-            We've sent a verification email to <strong>{user?.email}</strong>
+            We&apos;ve sent a verification email to <strong>{user?.email}</strong>
           </CardDescription>
         </CardHeader>
         
@@ -83,14 +84,14 @@ export default function VerifyEmailPage() {
                 <ol className="list-decimal list-inside space-y-1 text-sm">
                   <li>Check your email inbox (and spam folder)</li>
                   <li>Click the verification link in the email</li>
-                  <li>Come back here and click "I've Verified My Email"</li>
+                  <li>Come back here and click &quot;I&apos;ve Verified My Email&quot;</li>
                 </ol>
               </div>
             </AlertDescription>
           </Alert>
           
           <div className="text-sm text-muted-foreground text-center">
-            <p>Didn't receive the email?</p>
+            <p>Didn&apos;t receive the email?</p>
             <p>Check your spam folder or request a new one below.</p>
           </div>
         </CardContent>
@@ -102,7 +103,7 @@ export default function VerifyEmailPage() {
             variant="default"
           >
             <RefreshCw className="mr-2 h-4 w-4" />
-            I've Verified My Email
+            I&apos;ve Verified My Email
           </Button>
           
           <Button

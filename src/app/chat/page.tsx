@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Bot, User as UserIcon, Send, MessageSquareHeart, LogOut, MoreVertical, Trash2, Menu, X } from 'lucide-react';
+import { Bot, User as UserIcon, Send, MessageSquareHeart, LogOut, MoreVertical, Trash2, Menu } from 'lucide-react';
 import { THERAPISTS, type Therapist, type Speaker } from '@/lib/constants';
 import * as actions from '../actions';
 import { useToast } from "@/hooks/use-toast";
@@ -185,12 +185,12 @@ export default function ChatPage() {
         if (savedMessages.length > 0) {
           // Convert Firestore message format to our Message type
           const formattedMessages: Message[] = savedMessages
-            .filter((msg: any) => msg.message) // Filter out messages without content
-            .map((msg: any) => ({
+            .filter((msg: { message?: string }) => msg.message) // Filter out messages without content
+            .map((msg: { id: string; speaker: string; message: string; timestamp: string | Date }) => ({
               id: msg.id,
               speaker: msg.speaker as Speaker,
               content: msg.message || '', // Fallback to empty string
-              timestamp: msg.timestamp,
+              timestamp: typeof msg.timestamp === 'string' ? new Date(msg.timestamp) : msg.timestamp,
             }));
           
           setMessages((prev) => ({
@@ -235,14 +235,6 @@ export default function ChatPage() {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [activeMessages]);
-
-  const addMessage = (therapistId: Therapist['id'], speaker: Speaker, content: string) => {
-    const newMessage: Message = { id: Date.now().toString(), speaker, content, timestamp: new Date() };
-    setMessages(prev => ({
-        ...prev,
-        [therapistId]: [...prev[therapistId], newMessage]
-    }));
-  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -409,11 +401,15 @@ export default function ChatPage() {
   };
 
   const PersonaIcon = ({ speaker, className }: { speaker: Speaker, className?: string }) => {
-    const Svg = {
+    const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
       'User': UserIcon,
       'Bot': Bot,
-    }[speaker] || MessageSquareHeart;
-    return Svg ? <Svg className={cn("h-5 w-5", className)} /> : null;
+      'Dr. Sarah': MessageSquareHeart,
+      'Dr. Laura': MessageSquareHeart,
+      'Dr. John': MessageSquareHeart,
+    };
+    const Svg = iconMap[speaker] || MessageSquareHeart;
+    return <Svg className={cn("h-5 w-5", className)} />;
   };
 
   // Memoized handlers to prevent re-renders
@@ -601,7 +597,8 @@ export default function ChatPage() {
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault();
-                            handleSendMessage(e as any);
+                            const formEvent = { preventDefault: () => {} } as React.FormEvent<HTMLFormElement>;
+                            handleSendMessage(formEvent);
                           }
                         }}
                         disabled={isThinking}
