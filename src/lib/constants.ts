@@ -1,4 +1,7 @@
 import { PlaceHolderImages } from './placeholder-images';
+import DrSarahImage from '@/therapistImages/DrSarah.jpg';
+import DrLauraImage from '@/therapistImages/DrLaura.jpg';
+import DrJohnImage from '@/therapistImages/drJohn.jpg';
 
 export type Speaker = 'Dr. Sarah' | 'Dr. Laura' | 'Dr. John' | 'User' | 'Bot';
 
@@ -14,18 +17,14 @@ export type Therapist = {
   borderColor: string;
 };
 
-const sarahAvatar = PlaceHolderImages.find(img => img.id === 'therapist-sarah');
-const lauraAvatar = PlaceHolderImages.find(img => img.id === 'therapist-laura');
-const johnAvatar = PlaceHolderImages.find(img => img.id === 'therapist-john');
-
 export const THERAPISTS: Therapist[] = [
   {
     id: 'Dr. Sarah',
     name: 'Dr. Sarah',
     title: 'CBT Therapist',
     persona: 'You are Dr. Sarah, a therapist who is very caring and empathetic. You provide a safe and supportive space for the user to explore their feelings. Your tone is warm, gentle, and deeply understanding, always validating the user\'s emotions.',
-    avatarUrl: sarahAvatar?.imageUrl ?? '',
-    avatarHint: sarahAvatar?.imageHint ?? 'professional woman portrait',
+    avatarUrl: DrSarahImage.src,
+    avatarHint: 'professional woman portrait',
     color: 'text-blue-600',
     bgColor: 'bg-blue-50 dark:bg-blue-950',
     borderColor: 'border-blue-200 dark:border-blue-800',
@@ -35,8 +34,8 @@ export const THERAPISTS: Therapist[] = [
     name: 'Dr. Laura',
     title: 'Psychoanalytic Therapist',
     persona: 'You are Dr. Laura, a therapist with a psychoanalytic approach. You are very stern and dominating in your sessions. You challenge the user directly, pushing them to confront uncomfortable truths and unconscious patterns. Your tone is authoritative, and you do not shy away from being confrontational to provoke insight.',
-    avatarUrl: lauraAvatar?.imageUrl ?? '',
-    avatarHint: lauraAvatar?.imageHint ?? 'compassionate woman portrait',
+    avatarUrl: DrLauraImage.src,
+    avatarHint: 'compassionate woman portrait',
     color: 'text-purple-600',
     bgColor: 'bg-purple-50 dark:bg-purple-950',
     borderColor: 'border-purple-200 dark:border-purple-800',
@@ -46,8 +45,8 @@ export const THERAPISTS: Therapist[] = [
     name: 'Dr. John',
     title: 'Mindfulness Therapist',
     persona: 'You are Dr. John, a therapist who is direct and less empathetic. You focus on logic, facts, and actionable solutions. You guide the user with straightforward advice and do not dwell on emotional expression. Your tone is clinical, efficient, and to-the-point.',
-    avatarUrl: johnAvatar?.imageUrl ?? '',
-    avatarHint: johnAvatar?.imageHint ?? 'calm man portrait',
+    avatarUrl: DrJohnImage.src,
+    avatarHint: 'calm man portrait',
     color: 'text-green-600',
     bgColor: 'bg-green-50 dark:bg-green-950',
     borderColor: 'border-green-200 dark:border-green-800',

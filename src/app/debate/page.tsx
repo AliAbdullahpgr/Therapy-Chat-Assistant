@@ -23,7 +23,8 @@ import {
   Info,
   Download,
   Users,
-  MoreVertical
+  MoreVertical,
+  Menu
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -35,6 +36,13 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 
 type DebateState = 'selecting' | 'playing' | 'paused' | 'finished';
 
@@ -51,6 +59,7 @@ export default function DebatePage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [nextSpeaker, setNextSpeaker] = useState<'Dr. Sarah' | 'Dr. Laura' | 'Dr. John'>('Dr. Sarah');
   const [showParticipants, setShowParticipants] = useState(false);
+  const [mobileParticipantsOpen, setMobileParticipantsOpen] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const debateContainerRef = useRef<HTMLDivElement>(null);
@@ -408,6 +417,75 @@ export default function DebatePage() {
         {/* Header with Controls */}
         <header className="border-b bg-card px-3 md:px-6 py-2 md:py-3 sticky top-0 z-10 shadow-sm">
           <div className="flex items-center justify-between gap-2">
+            {/* Mobile Burger Menu for Participants */}
+            <div className="md:hidden">
+              <Sheet open={mobileParticipantsOpen} onOpenChange={setMobileParticipantsOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Menu className="h-4 w-4" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-[280px] sm:w-[320px] overflow-y-auto">
+                  <SheetHeader>
+                    <SheetTitle className="flex items-center gap-2">
+                      <Users className="h-5 w-5" />
+                      Participants
+                    </SheetTitle>
+                  </SheetHeader>
+                  <div className="mt-6 space-y-3">
+                    {THERAPISTS.map(therapist => {
+                      const messageCount = participantStats.get(therapist.id) || 0;
+                      const isActive = nextSpeaker === therapist.id && isGenerating;
+                      
+                      return (
+                        <div 
+                          key={therapist.id}
+                          className={cn(
+                            "flex items-start gap-3 p-3 rounded-lg border-2 transition-all",
+                            therapist.borderColor,
+                            isActive && "ring-2 ring-offset-2 ring-primary animate-pulse"
+                          )}
+                        >
+                          <Avatar className={cn("w-10 h-10 border-2", therapist.borderColor)}>
+                            <AvatarImage src={therapist.avatarUrl} />
+                            <AvatarFallback className={therapist.bgColor}>
+                              {therapist.name.charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className={cn("font-semibold text-sm", therapist.color)}>
+                              {therapist.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {therapist.title}
+                            </p>
+                            <Badge variant="secondary" className="mt-1 text-xs">
+                              {messageCount} {messageCount === 1 ? 'message' : 'messages'}
+                            </Badge>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    
+                    {participantStats.has('User') && (
+                      <div className="flex items-start gap-3 p-3 rounded-lg border-2 border-primary">
+                        <Avatar className="w-10 h-10 border-2 border-primary">
+                          <AvatarFallback>U</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <p className="font-semibold text-sm">You</p>
+                          <p className="text-xs text-muted-foreground">Participant</p>
+                          <Badge variant="secondary" className="mt-1 text-xs">
+                            {participantStats.get('User')} {participantStats.get('User') === 1 ? 'message' : 'messages'}
+                          </Badge>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
+
             <div className="flex-1 min-w-0">
               <h2 className="text-sm md:text-base font-semibold truncate">{selectedTopicData?.title}</h2>
               <p className="text-xs text-muted-foreground">
@@ -464,10 +542,6 @@ export default function DebatePage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={() => setShowParticipants(!showParticipants)}>
-                    <Users className="h-4 w-4 mr-2" />
-                    {showParticipants ? 'Hide' : 'Show'} Participants
-                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleExport} disabled={messages.length === 0}>
                     <Download className="h-4 w-4 mr-2" />
                     Export Transcript
